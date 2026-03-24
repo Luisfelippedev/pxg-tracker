@@ -1,3 +1,3 @@
-# Welcome to your Lovable project
+# PokéX Progress Tracker
 
 TODO: Document your project here
