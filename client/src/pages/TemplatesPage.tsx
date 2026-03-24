@@ -25,6 +25,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import { Settings2, Plus, Trash2 } from "lucide-react";
 import { useForm } from "react-hook-form";
@@ -44,6 +54,7 @@ const freqLabel = (f: TaskFrequency) => (f === "weekly" ? "Semanal" : "Mensal");
 
 export default function TemplatesPage() {
   const [open, setOpen] = useState(false);
+  const [templateToDelete, setTemplateToDelete] = useState<{ id: string; name: string } | null>(null);
   const [draftTemplateIds, setDraftTemplateIds] = useState<string[]>([]);
   const { selectedChar } = useChar();
   const { data: templates, isLoading } = useTemplates();
@@ -88,9 +99,20 @@ export default function TemplatesPage() {
     );
   };
 
-  const handleDelete = (id: string) => {
-    deleteTemplate.mutate(id, {
-      onSuccess: () => toast.success("Template removido!"),
+  const handleDelete = (id: string, name: string) => {
+    setTemplateToDelete({ id, name });
+  };
+
+  const handleConfirmDeleteTemplate = () => {
+    if (!templateToDelete) return;
+    deleteTemplate.mutate(templateToDelete.id, {
+      onSuccess: () => {
+        toast.success("Template removido!");
+        setTemplateToDelete(null);
+      },
+      onError: () => {
+        toast.error("Não foi possível excluir o template.");
+      },
     });
   };
 
@@ -121,6 +143,36 @@ export default function TemplatesPage() {
 
   return (
     <div className="space-y-6">
+      <AlertDialog
+        open={!!templateToDelete}
+        onOpenChange={(open) => !open && setTemplateToDelete(null)}
+      >
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display">
+              Excluir template?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              O template &quot;{templateToDelete?.name}&quot; será removido permanentemente. Isso o
+              removerá de todos os chars que o utilizam. O histórico de tarefas já concluídas pode
+              ser afetado. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleConfirmDeleteTemplate();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir definitivamente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div>
         <h1 className="text-3xl font-display font-bold tracking-tight flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 border border-primary/20">
@@ -270,7 +322,7 @@ export default function TemplatesPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDelete(t.id)}
+                      onClick={() => handleDelete(t.id, t.name)}
                       className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                     >
                       <Trash2 className="h-4 w-4" />
