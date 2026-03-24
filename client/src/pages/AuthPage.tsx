@@ -1,40 +1,91 @@
-import { FormEvent, useState } from "react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { login, register } from "@/services/api";
 import { authStore } from "@/stores/authStore";
+import { getAuthErrorMessage } from "@/lib/authErrors";
 import { toast } from "sonner";
 import { Navigate } from "react-router-dom";
+import { AlertCircle } from "lucide-react";
+
+const loginSchema = z.object({
+  email: z.string().min(1, "Email é obrigatório").email("Informe um email válido"),
+  password: z.string().min(1, "Senha é obrigatória"),
+});
+
+const registerSchema = loginSchema.extend({
+  password: z.string().min(6, "A senha deve ter pelo menos 6 caracteres"),
+});
+
+type LoginForm = z.infer<typeof loginSchema>;
+type RegisterForm = z.infer<typeof registerSchema>;
 
 export default function AuthPage() {
   const setSession = authStore((s) => s.setSession);
   const accessToken = authStore((s) => s.accessToken);
   const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("login");
 
-  if (accessToken) {
-    return <Navigate to="/" replace />;
+  const loginForm = useForm<LoginForm>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: "", password: "" },
+  });
+
+  const registerForm = useForm<RegisterForm>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: { email: "", password: "" },
+  });
+
+  function clearApiError() {
+    setApiError(null);
   }
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>, mode: "login" | "register") {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const email = String(form.get("email") ?? "");
-    const password = String(form.get("password") ?? "");
+  async function onLoginSubmit(values: LoginForm) {
     setLoading(true);
-
+    setApiError(null);
     try {
-      const data =
-        mode === "login" ? await login(email, password) : await register(email, password);
+      const data = await login(values.email.trim().toLowerCase(), values.password);
       setSession(data);
-      toast.success(mode === "login" ? "Login realizado com sucesso" : "Conta criada com sucesso");
-    } catch {
-      toast.error("Não foi possível autenticar. Confira seus dados.");
+      toast.success("Login realizado com sucesso");
+    } catch (err) {
+      setApiError(getAuthErrorMessage(err));
     } finally {
       setLoading(false);
     }
+  }
+
+  async function onRegisterSubmit(values: RegisterForm) {
+    setLoading(true);
+    setApiError(null);
+    try {
+      const data = await register(values.email.trim().toLowerCase(), values.password);
+      setSession(data);
+      toast.success("Conta criada com sucesso");
+    } catch (err) {
+      setApiError(getAuthErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (accessToken) {
+    return <Navigate to="/" replace />;
   }
 
   return (
@@ -54,38 +105,162 @@ export default function AuthPage() {
             </div>
           </div>
           <h1 className="text-4xl font-display font-bold text-foreground tracking-tight">
-            PxgTracker
+            PokexGames
           </h1>
           <p className="text-muted-foreground mt-1 text-sm">Task Tracker</p>
-          <p className="text-muted-foreground mt-2">Entre na sua conta para gerenciar seus chars</p>
+          <p className="text-muted-foreground mt-2">
+            Entre na sua conta para gerenciar seus chars
+          </p>
         </div>
         <Card className="gradient-card border-border shadow-card">
           <CardHeader>
             <CardTitle>Acesso</CardTitle>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="login" className="space-y-4">
+            <Tabs
+              value={activeTab}
+              onValueChange={(v) => {
+                setActiveTab(v);
+                clearApiError();
+              }}
+              className="space-y-4"
+            >
               <TabsList className="grid grid-cols-2 w-full">
-                <TabsTrigger value="login">Login</TabsTrigger>
-                <TabsTrigger value="register">Cadastro</TabsTrigger>
+                <TabsTrigger value="login">Entrar</TabsTrigger>
+                <TabsTrigger value="register">Cadastrar</TabsTrigger>
               </TabsList>
-              <TabsContent value="login">
-                <form className="space-y-3" onSubmit={(e) => onSubmit(e, "login")}>
-                  <Input name="email" type="email" placeholder="Email" required />
-                  <Input name="password" type="password" placeholder="Senha" required minLength={6} />
-                  <Button className="w-full" disabled={loading}>
-                    Entrar
-                  </Button>
-                </form>
+
+              {apiError && (
+                <Alert variant="destructive" className="py-3">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{apiError}</AlertDescription>
+                </Alert>
+              )}
+
+              <TabsContent value="login" className="space-y-4 mt-4">
+                <Form {...loginForm}>
+                  <form
+                    onSubmit={loginForm.handleSubmit(onLoginSubmit)}
+                    className="space-y-4"
+                  >
+                    <FormField
+                      control={loginForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="email"
+                              placeholder="seu@email.com"
+                              autoComplete="email"
+                              {...field}
+                              onChange={(e) => {
+                                field.onChange(e);
+                                clearApiError();
+                              }}
+                              className={loginForm.formState.errors.email ? "border-destructive" : ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={loginForm.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Senha</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="password"
+                              placeholder="••••••••"
+                              autoComplete="current-password"
+                              {...field}
+                              onChange={(e) => {
+                                field.onChange(e);
+                                clearApiError();
+                              }}
+                              className={loginForm.formState.errors.password ? "border-destructive" : ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={loading}
+                    >
+                      {loading ? "Entrando…" : "Entrar"}
+                    </Button>
+                  </form>
+                </Form>
               </TabsContent>
-              <TabsContent value="register">
-                <form className="space-y-3" onSubmit={(e) => onSubmit(e, "register")}>
-                  <Input name="email" type="email" placeholder="Email" required />
-                  <Input name="password" type="password" placeholder="Senha (min 6)" required minLength={6} />
-                  <Button className="w-full" disabled={loading}>
-                    Criar conta
-                  </Button>
-                </form>
+
+              <TabsContent value="register" className="space-y-4 mt-4">
+                <Form {...registerForm}>
+                  <form
+                    onSubmit={registerForm.handleSubmit(onRegisterSubmit)}
+                    className="space-y-4"
+                  >
+                    <FormField
+                      control={registerForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="email"
+                              placeholder="seu@email.com"
+                              autoComplete="email"
+                              {...field}
+                              onChange={(e) => {
+                                field.onChange(e);
+                                clearApiError();
+                              }}
+                              className={registerForm.formState.errors.email ? "border-destructive" : ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={registerForm.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Senha</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="password"
+                              placeholder="Mínimo 6 caracteres"
+                              autoComplete="new-password"
+                              {...field}
+                              onChange={(e) => {
+                                field.onChange(e);
+                                clearApiError();
+                              }}
+                              className={registerForm.formState.errors.password ? "border-destructive" : ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={loading}
+                    >
+                      {loading ? "Criando conta…" : "Criar conta"}
+                    </Button>
+                  </form>
+                </Form>
               </TabsContent>
             </Tabs>
           </CardContent>

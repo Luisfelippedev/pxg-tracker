@@ -179,9 +179,7 @@ export class TrackerService {
     const targetProgress = charId
       ? charProgress.find((p) => p.charId === charId)
       : null;
-    const statsSource = targetProgress
-      ? [targetProgress]
-      : charProgress;
+    const statsSource = targetProgress ? [targetProgress] : charProgress;
 
     const totalTasks = statsSource.reduce((sum, item) => sum + item.total, 0);
     const completedTasks = statsSource.reduce(
