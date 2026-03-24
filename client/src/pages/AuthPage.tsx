@@ -40,7 +40,19 @@ export default function AuthPage() {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md space-y-5">
         <div className="text-center">
-          <h1 className="text-4xl font-display text-gradient">Pokex Tracker</h1>
+          <div className="flex justify-center mb-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl gradient-card border border-primary/20 shadow-card overflow-hidden p-2">
+              <img
+                src="/icons/pokeball.png"
+                alt="PokexGames"
+                className="h-full w-full object-contain"
+              />
+            </div>
+          </div>
+          <h1 className="text-4xl font-display font-bold text-foreground tracking-tight">
+            PokexGames
+          </h1>
+          <p className="text-muted-foreground mt-1 text-sm">Task Tracker</p>
           <p className="text-muted-foreground mt-2">Entre na sua conta para gerenciar seus chars</p>
         </div>
         <Card className="gradient-card border-border shadow-card">

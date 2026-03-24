@@ -1,3 +1,3 @@
-# PokéX Progress Tracker
+# PxgTracker
 
 TODO: Document your project here

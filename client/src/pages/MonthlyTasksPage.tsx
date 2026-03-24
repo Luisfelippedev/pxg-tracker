@@ -1,7 +1,9 @@
 import { useChar } from "@/contexts/CharContext";
-import { useTaskInstances, useUpdateTaskStatus } from "@/hooks/useTaskData";
+import { useTaskInstances, useUpdateTaskStatus, useChars } from "@/hooks/useTaskData";
 import { SkeletonTable } from "@/components/Skeletons";
 import EmptyState from "@/components/EmptyState";
+import NoCharsEmptyState from "@/components/NoCharsEmptyState";
+import NoTemplatesEmptyState from "@/components/NoTemplatesEmptyState";
 import { Switch } from "@/components/ui/switch";
 import { CalendarRange } from "lucide-react";
 import dayjs from "dayjs";
@@ -13,14 +15,30 @@ const monthNames = [
 
 export default function MonthlyTasksPage() {
   const { selectedChar } = useChar();
+  const { data: chars } = useChars();
   const { data: tasks, isLoading, isFetching } = useTaskInstances({
     frequency: "monthly",
     charId: selectedChar?.id ?? null,
   });
   const updateStatus = useUpdateTaskStatus();
+  const hasNoChars = chars && chars.length === 0;
 
   const currentMonth = dayjs().month() + 1;
   const currentYear = dayjs().year();
+
+  if (hasNoChars) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-3xl font-display font-bold tracking-tight flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 border border-primary/20">
+            <CalendarRange className="h-5 w-5 text-primary" />
+          </div>
+          Tarefas Mensais
+        </h1>
+        <NoCharsEmptyState context="para gerenciar as tarefas mensais" />
+      </div>
+    );
+  }
 
   if (!selectedChar) {
     return (
@@ -56,10 +74,7 @@ export default function MonthlyTasksPage() {
       {isLoading ? (
         <SkeletonTable />
       ) : !tasks || tasks.length === 0 ? (
-        <EmptyState
-          title="Sem tarefas mensais"
-          description="Nenhuma tarefa mensal configurada para este char. Adicione templates em Templates → por char."
-        />
+        <NoTemplatesEmptyState frequency="mensal" />
       ) : (
         <div className={`rounded-xl border border-border overflow-hidden shadow-card gradient-card transition-opacity ${isFetching ? "opacity-80" : "opacity-100"}`}>
           <table className="w-full">

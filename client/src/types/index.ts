@@ -1,4 +1,4 @@
-/** Personagem/char do jogo PokéxGames */
+/** Personagem/char do jogo PxgTracker */
 export interface Char {
   id: string;
   name: string;

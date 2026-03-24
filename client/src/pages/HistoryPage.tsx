@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useChar } from "@/contexts/CharContext";
-import { useChars } from "@/hooks/useTaskData";
-import { usePeriodHistory } from "@/hooks/useTaskData";
+import { useChars, usePeriodHistory } from "@/hooks/useTaskData";
 import { SkeletonTable } from "@/components/Skeletons";
 import EmptyState from "@/components/EmptyState";
+import NoCharsEmptyState from "@/components/NoCharsEmptyState";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { History, CalendarDays, CalendarRange } from "lucide-react";
@@ -33,6 +33,26 @@ export default function HistoryPage() {
   );
 
   const effectiveChar = selectedChar ?? chars?.[0] ?? null;
+  const hasNoChars = chars && chars.length === 0;
+
+  if (hasNoChars) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-display font-bold tracking-tight flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 border border-primary/20">
+              <History className="h-5 w-5 text-primary" />
+            </div>
+            Histórico
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1.5 pl-12">
+            Logs de semanas e meses anteriores por char
+          </p>
+        </div>
+        <NoCharsEmptyState context="para ver o histórico" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -1,5 +1,5 @@
 /**
- * Lógica de períodos para o PokéxGames Tracker.
+ * Lógica de períodos para o PxgTracker.
  * Backend deve implementar:
  * - Reset semanal: toda segunda-feira (início do dia)
  * - Reset mensal: todo dia 1 do mês

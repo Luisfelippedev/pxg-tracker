@@ -1,5 +1,5 @@
 import { ReactNode, useEffect } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   CalendarDays,
@@ -8,6 +8,8 @@ import {
   History,
   Users,
   User,
+  UserPlus,
+  ChevronRight,
 } from "lucide-react";
 import { useChar } from "@/contexts/CharContext";
 import { useChars } from "@/hooks/useTaskData";
@@ -50,39 +52,53 @@ function AppSidebar() {
       {/* Logo */}
       <div className="px-5 py-5">
         <div className="flex items-center gap-3 mb-4">
-          <div className="relative flex h-10 w-10 items-center justify-center rounded-xl gradient-primary shadow-primary">
-            <span className="text-lg font-display font-bold text-primary-foreground tracking-tight">
-              PX
-            </span>
-            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-accent border-2 border-sidebar" />
+          <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl gradient-card border border-primary/20 shadow-card overflow-hidden p-1.5">
+            <img
+              src="/icons/pokeball.png"
+              alt="PokexGames"
+              className="h-full w-full object-contain drop-shadow-sm"
+            />
           </div>
-          <div>
-            <h1 className="text-base font-display font-bold text-foreground tracking-wide">
-              PokexGames
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base font-display font-bold text-foreground tracking-wide truncate">
+              PxgTracker
             </h1>
             <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-medium">
               Task Tracker
             </p>
           </div>
         </div>
-        <Select
-          value={selectedChar?.id ?? ""}
-          onValueChange={(id) => {
-            const c = chars?.find((x) => x.id === id);
-            if (c) setSelectedChar(c);
-          }}
-        >
-          <SelectTrigger className="w-full bg-muted/50 border-border h-9 text-sm">
-            <SelectValue placeholder="Selecione o char" />
-          </SelectTrigger>
-          <SelectContent>
-            {chars?.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {chars && chars.length === 0 ? (
+          <Link
+            to="/chars"
+            className="flex w-full items-center justify-between gap-2 rounded-md border border-input bg-muted/50 px-3 py-2 h-9 text-sm text-primary hover:bg-primary/10 hover:border-primary/20 transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <UserPlus className="h-4 w-4" />
+              Criar primeiro char
+            </span>
+            <ChevronRight className="h-4 w-4 opacity-70" />
+          </Link>
+        ) : (
+          <Select
+            value={selectedChar?.id ?? ""}
+            onValueChange={(id) => {
+              const c = chars?.find((x) => x.id === id);
+              if (c) setSelectedChar(c);
+            }}
+          >
+            <SelectTrigger className="w-full bg-muted/50 border-border h-9 text-sm">
+              <SelectValue placeholder="Selecione o char" />
+            </SelectTrigger>
+            <SelectContent>
+              {chars?.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {/* Divider */}

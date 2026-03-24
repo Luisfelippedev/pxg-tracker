@@ -1,15 +1,27 @@
 import { useChar } from "@/contexts/CharContext";
-import { useDashboard } from "@/hooks/useTaskData";
+import { useDashboard, useChars } from "@/hooks/useTaskData";
 import StatCard from "@/components/StatCard";
 import ProgressBar from "@/components/ProgressBar";
 import CharProgressMiniCard from "@/components/CharProgressMiniCard";
 import { SkeletonCard } from "@/components/Skeletons";
 import { ListChecks, CheckCircle2, TrendingUp, Users } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
+import NoCharsEmptyState from "@/components/NoCharsEmptyState";
 
 export default function DashboardPage() {
   const { selectedChar, setSelectedChar } = useChar();
+  const { data: chars } = useChars();
   const { data, isLoading } = useDashboard(selectedChar?.id);
+  const hasNoChars = chars && chars.length === 0;
+
+  if (hasNoChars) {
+    return (
+      <div className="space-y-8">
+        <h1 className="text-3xl font-display font-bold tracking-tight">Dashboard</h1>
+        <NoCharsEmptyState context="para ver o progresso das tarefas" />
+      </div>
+    );
+  }
 
   if (!selectedChar) {
     return (
