@@ -3,7 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { authStore } from "@/stores/authStore";
 import { logout } from "@/services/api";
-import { User, LogOut, Mail } from "lucide-react";
+import ThemeToggle from "@/components/ThemeToggle";
+import { User, LogOut, Mail, Palette } from "lucide-react";
+import { useTheme } from "@/contexts/ThemeContext";
 
 function getInitials(email: string): string {
   const local = email.split("@")[0];
@@ -14,6 +16,7 @@ function getInitials(email: string): string {
 export default function ProfilePage() {
   const user = authStore((s) => s.user);
   const clearSession = authStore((s) => s.clearSession);
+  const { theme } = useTheme();
 
   const handleLogout = async () => {
     try {
@@ -82,6 +85,23 @@ export default function ProfilePage() {
               </div>
             </div>
           )}
+
+          <div className="flex items-center justify-between gap-3 p-4 rounded-lg bg-muted/30 border border-border">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                <Palette className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                  Aparência
+                </p>
+                <p className="text-sm font-medium">
+                  Tema atual: {theme === "dark" ? "Escuro" : "Claro"}
+                </p>
+              </div>
+            </div>
+            <ThemeToggle />
+          </div>
 
           <Button
             variant="outline"

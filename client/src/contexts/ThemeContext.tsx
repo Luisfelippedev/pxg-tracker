@@ -19,11 +19,6 @@ type ThemeContextValue = {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-function getSystemTheme(): Theme {
-  if (typeof window === "undefined") return "dark";
-  return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
-}
-
 function getStoredTheme(): Theme | null {
   if (typeof window === "undefined") return null;
   const stored = localStorage.getItem(STORAGE_KEY);
@@ -35,7 +30,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
     if (typeof document === "undefined") return "dark";
     const current = document.documentElement.dataset.theme;
-    return current === "light" || current === "dark" ? current : getStoredTheme() ?? getSystemTheme();
+    return current === "light" || current === "dark" ? current : getStoredTheme() ?? "dark";
   });
   const [mounted, setMounted] = useState(false);
 
@@ -50,18 +45,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY, theme);
     root.classList.toggle("dark", theme === "dark");
   }, [theme, mounted]);
-
-  useEffect(() => {
-    if (!mounted) return;
-    const media = window.matchMedia("(prefers-color-scheme: light)");
-    const handler = () => {
-      if (!getStoredTheme()) {
-        setThemeState(media.matches ? "light" : "dark");
-      }
-    };
-    media.addEventListener("change", handler);
-    return () => media.removeEventListener("change", handler);
-  }, [mounted]);
 
   const setTheme = useCallback((newTheme: Theme) => {
     setThemeState(newTheme);
