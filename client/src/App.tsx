@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CharProvider } from "@/contexts/CharContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import AppLayout from "@/components/AppLayout";
 import DashboardPage from "@/pages/DashboardPage";
 import WeeklyTasksPage from "@/pages/WeeklyTasksPage";
@@ -26,8 +27,9 @@ function RequireAuth({ children }: { children: ReactNode }) {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <CharProvider>
+    <ThemeProvider>
+      <TooltipProvider>
+        <CharProvider>
         <Sonner />
         <BrowserRouter>
           <Routes>
@@ -105,8 +107,9 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
-      </CharProvider>
-    </TooltipProvider>
+        </CharProvider>
+      </TooltipProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 

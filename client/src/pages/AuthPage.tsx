@@ -1,5 +1,6 @@
 import { FormEvent, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import ThemeToggle from "@/components/ThemeToggle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -37,7 +38,10 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 relative">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-md space-y-5">
         <div className="text-center">
           <div className="flex justify-center mb-4">
@@ -50,7 +54,7 @@ export default function AuthPage() {
             </div>
           </div>
           <h1 className="text-4xl font-display font-bold text-foreground tracking-tight">
-            PokexGames
+            PxgTracker
           </h1>
           <p className="text-muted-foreground mt-1 text-sm">Task Tracker</p>
           <p className="text-muted-foreground mt-2">Entre na sua conta para gerenciar seus chars</p>

@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { getStoredCharId } from "@/contexts/CharContext";
 import ProfileCard from "@/components/ProfileCard";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -129,7 +130,10 @@ function AppSidebar() {
       </nav>
 
       {/* Profile */}
-      <div className="px-4 pb-4">
+      <div className="px-4 pb-4 space-y-3">
+        <div className="flex justify-end">
+          <ThemeToggle />
+        </div>
         <ProfileCard />
       </div>
     </aside>

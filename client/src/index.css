@@ -5,7 +5,69 @@
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @layer base {
-  :root {
+  /* Tema claro - design system clean */
+  :root,
+  [data-theme="light"] {
+    --background: 40 20% 98%;
+    --foreground: 220 20% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 20% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 20% 12%;
+
+    --primary: 0 72% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 14% 95%;
+    --secondary-foreground: 220 20% 20%;
+
+    --muted: 220 14% 94%;
+    --muted-foreground: 220 10% 42%;
+
+    --accent: 45 92% 50%;
+    --accent-foreground: 220 20% 10%;
+
+    --destructive: 0 72% 48%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 152 55% 42%;
+    --success-foreground: 0 0% 100%;
+
+    --info: 210 80% 50%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 220 14% 88%;
+    --input: 220 14% 90%;
+    --ring: 0 72% 50%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 20% 18%;
+    --sidebar-primary: 0 72% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 95%;
+    --sidebar-accent-foreground: 220 20% 18%;
+    --sidebar-border: 220 14% 92%;
+    --sidebar-ring: 0 72% 50%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(0 72% 52%), hsl(350 78% 42%));
+    --gradient-accent: linear-gradient(135deg, hsl(45 92% 52%), hsl(35 88% 45%));
+    --gradient-card: linear-gradient(160deg, hsl(0 0% 100%), hsl(220 20% 98%));
+    --gradient-glass: linear-gradient(135deg, hsl(0 0% 100% / 0.9), hsl(220 20% 98% / 0.85));
+    --shadow-primary: 0 4px 20px -4px hsl(0 72% 50% / 0.2);
+    --shadow-card: 0 1px 3px hsl(220 20% 20% / 0.06), 0 4px 12px hsl(220 20% 20% / 0.04);
+    --shadow-glow: 0 0 20px hsl(0 72% 50% / 0.08), 0 0 40px hsl(0 72% 50% / 0.04);
+
+    --font-display: 'Rajdhani', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  /* Tema escuro */
+  [data-theme="dark"] {
     --background: 220 20% 6%;
     --foreground: 210 20% 93%;
 
@@ -40,8 +102,6 @@
     --input: 220 14% 16%;
     --ring: 0 72% 55%;
 
-    --radius: 0.75rem;
-
     --sidebar-background: 220 20% 8%;
     --sidebar-foreground: 210 12% 65%;
     --sidebar-primary: 0 72% 55%;
@@ -58,10 +118,6 @@
     --shadow-primary: 0 4px 24px -4px hsl(0 72% 55% / 0.25);
     --shadow-card: 0 2px 16px -4px hsl(220 20% 3% / 0.7);
     --shadow-glow: 0 0 24px hsl(0 72% 55% / 0.12), 0 0 48px hsl(0 72% 55% / 0.06);
-
-    --font-display: 'Rajdhani', sans-serif;
-    --font-body: 'Inter', sans-serif;
-    --font-mono: 'JetBrains Mono', monospace;
   }
 }
 
@@ -140,14 +196,24 @@
 ::-webkit-scrollbar {
   width: 5px;
 }
-::-webkit-scrollbar-track {
+[data-theme="light"] ::-webkit-scrollbar-track {
+  background: hsl(220 14% 95%);
+}
+[data-theme="dark"] ::-webkit-scrollbar-track {
   background: hsl(220 20% 6%);
 }
-::-webkit-scrollbar-thumb {
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: hsl(220 14% 78%);
+  border-radius: 10px;
+}
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
   background: hsl(220 14% 20%);
   border-radius: 10px;
 }
-::-webkit-scrollbar-thumb:hover {
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: hsl(0 72% 50% / 0.5);
+}
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
   background: hsl(0 72% 55% / 0.5);
 }
 
