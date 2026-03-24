@@ -13,7 +13,7 @@ const monthNames = [
 
 export default function MonthlyTasksPage() {
   const { selectedChar } = useChar();
-  const { data: tasks, isLoading } = useTaskInstances({
+  const { data: tasks, isLoading, isFetching } = useTaskInstances({
     frequency: "monthly",
     charId: selectedChar?.id ?? null,
   });
@@ -61,7 +61,7 @@ export default function MonthlyTasksPage() {
           description="Nenhuma tarefa mensal configurada para este char. Adicione templates em Templates → por char."
         />
       ) : (
-        <div className="rounded-xl border border-border overflow-hidden shadow-card gradient-card">
+        <div className={`rounded-xl border border-border overflow-hidden shadow-card gradient-card transition-opacity ${isFetching ? "opacity-80" : "opacity-100"}`}>
           <table className="w-full">
             <thead>
               <tr className="border-b border-border bg-muted/20">
@@ -78,6 +78,7 @@ export default function MonthlyTasksPage() {
                     <Switch
                       checked={task.done}
                       onCheckedChange={(checked) => updateStatus.mutate({ id: task.id, done: checked })}
+                      disabled={updateStatus.isPending}
                     />
                   </td>
                   <td className="px-5 py-3.5 text-sm text-muted-foreground">

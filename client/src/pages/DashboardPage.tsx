@@ -2,12 +2,13 @@ import { useChar } from "@/contexts/CharContext";
 import { useDashboard } from "@/hooks/useTaskData";
 import StatCard from "@/components/StatCard";
 import ProgressBar from "@/components/ProgressBar";
+import CharProgressMiniCard from "@/components/CharProgressMiniCard";
 import { SkeletonCard } from "@/components/Skeletons";
-import { ListChecks, CheckCircle2, TrendingUp } from "lucide-react";
+import { ListChecks, CheckCircle2, TrendingUp, Users } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 
 export default function DashboardPage() {
-  const { selectedChar } = useChar();
+  const { selectedChar, setSelectedChar } = useChar();
   const { data, isLoading } = useDashboard(selectedChar?.id);
 
   if (!selectedChar) {
@@ -21,6 +22,9 @@ export default function DashboardPage() {
       </div>
     );
   }
+
+  const selectedProgress = data?.charProgress.find((cp) => cp.charId === selectedChar.id);
+  const otherCharsProgress = data?.charProgress.filter((cp) => cp.charId !== selectedChar.id) ?? [];
 
   return (
     <div className="space-y-8">
@@ -51,19 +55,36 @@ export default function DashboardPage() {
             />
           </div>
 
-          {data.charProgress.length > 0 && (
+          {selectedProgress && (
             <div className="rounded-xl border border-border gradient-card p-6 shadow-card">
               <h2 className="text-lg font-display font-bold mb-6 flex items-center gap-2">
                 <div className="w-1 h-5 rounded-full gradient-primary" />
-                Progresso do Char
+                Progresso de {selectedChar.name}
               </h2>
-              <div className="space-y-5">
-                {data.charProgress.map((cp) => (
-                  <ProgressBar
+              <ProgressBar
+                label={selectedChar.name}
+                sublabel={`${selectedProgress.completed}/${selectedProgress.total} tarefas`}
+                value={selectedProgress.percentage}
+              />
+            </div>
+          )}
+
+          {otherCharsProgress.length > 0 && (
+            <div className="space-y-4">
+              <h2 className="text-base font-display font-bold flex items-center gap-2 text-muted-foreground">
+                <Users className="h-4 w-4" />
+                Visão geral dos outros chars
+              </h2>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {otherCharsProgress.map((cp) => (
+                  <CharProgressMiniCard
                     key={cp.charId}
-                    label={cp.charName}
-                    sublabel={`${cp.completed}/${cp.total} tarefas`}
-                    value={cp.percentage}
+                    charId={cp.charId}
+                    charName={cp.charName}
+                    total={cp.total}
+                    completed={cp.completed}
+                    percentage={cp.percentage}
+                    onSelect={setSelectedChar}
                   />
                 ))}
               </div>

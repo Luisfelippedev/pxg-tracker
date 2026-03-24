@@ -1,10 +1,25 @@
 import { ReactNode, useEffect } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, CalendarDays, CalendarRange, Settings2, History } from "lucide-react";
+import {
+  LayoutDashboard,
+  CalendarDays,
+  CalendarRange,
+  Settings2,
+  History,
+  Users,
+  User,
+} from "lucide-react";
 import { useChar } from "@/contexts/CharContext";
 import { useChars } from "@/hooks/useTaskData";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { getStoredCharId } from "@/contexts/CharContext";
+import ProfileCard from "@/components/ProfileCard";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -12,6 +27,8 @@ const navItems = [
   { to: "/monthly", icon: CalendarRange, label: "Mensais" },
   { to: "/templates", icon: Settings2, label: "Templates" },
   { to: "/history", icon: History, label: "Histórico" },
+  { to: "/chars", icon: Users, label: "Chars" },
+  { to: "/profile", icon: User, label: "Perfil" },
 ];
 
 function AppSidebar() {
@@ -23,7 +40,7 @@ function AppSidebar() {
     if (!chars || chars.length === 0 || selectedChar) return;
     const storedId = getStoredCharId();
     const toSelect = storedId
-      ? chars.find((c) => c.id === storedId) ?? chars[0]
+      ? (chars.find((c) => c.id === storedId) ?? chars[0])
       : chars[0];
     setSelectedChar(toSelect);
   }, [chars, selectedChar, setSelectedChar]);
@@ -34,12 +51,18 @@ function AppSidebar() {
       <div className="px-5 py-5">
         <div className="flex items-center gap-3 mb-4">
           <div className="relative flex h-10 w-10 items-center justify-center rounded-xl gradient-primary shadow-primary">
-            <span className="text-lg font-display font-bold text-primary-foreground tracking-tight">PX</span>
+            <span className="text-lg font-display font-bold text-primary-foreground tracking-tight">
+              PX
+            </span>
             <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-accent border-2 border-sidebar" />
           </div>
           <div>
-            <h1 className="text-base font-display font-bold text-foreground tracking-wide">PokexGames</h1>
-            <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-medium">Task Tracker</p>
+            <h1 className="text-base font-display font-bold text-foreground tracking-wide">
+              PokexGames
+            </h1>
+            <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-medium">
+              Task Tracker
+            </p>
           </div>
         </div>
         <Select
@@ -54,7 +77,9 @@ function AppSidebar() {
           </SelectTrigger>
           <SelectContent>
             {chars?.map((c) => (
-              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+              <SelectItem key={c.id} value={c.id}>
+                {c.name}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -77,7 +102,9 @@ function AppSidebar() {
                   : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border border-transparent"
               }`}
             >
-              <item.icon className={`h-[18px] w-[18px] transition-colors ${isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"}`} />
+              <item.icon
+                className={`h-[18px] w-[18px] transition-colors ${isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"}`}
+              />
               {item.label}
               {isActive && <div className="ml-auto pokeball-dot" />}
             </NavLink>
@@ -85,15 +112,9 @@ function AppSidebar() {
         })}
       </nav>
 
-      {/* Footer */}
+      {/* Profile */}
       <div className="px-4 pb-4">
-        <div className="rounded-lg border border-border bg-muted/40 px-3 py-3">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Status</p>
-          </div>
-          <p className="text-xs text-foreground font-medium">Mock API ativa</p>
-        </div>
+        <ProfileCard />
       </div>
     </aside>
   );

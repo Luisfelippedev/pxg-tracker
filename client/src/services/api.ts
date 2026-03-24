@@ -1,140 +1,156 @@
+import axios from "axios";
+import { authStore } from "@/stores/authStore";
 import {
   Char,
-  TaskTemplate,
-  TaskInstance,
-  TaskInstanceEnriched,
   CharTemplate,
   DashboardSummary,
   PeriodSnapshot,
+  TaskInstance,
+  TaskInstanceEnriched,
+  TaskTemplate,
 } from "@/types";
-import {
-  mockChars,
-  mockTemplates,
-  mockInstances,
-  mockCharTemplates,
-  mockPeriodSnapshots,
-  getCurrentWeeklyPeriod,
-  getCurrentMonthlyPeriod,
-} from "./mockData";
 
-function ensureInstancesForChar(charId: string) {
-  const { year, week } = getCurrentWeeklyPeriod();
-  const { year: mYear, month } = getCurrentMonthlyPeriod();
-  const enabled = mockCharTemplates
-    .filter((ct) => ct.charId === charId)
-    .map((ct) => ct.templateId);
-  let idCounter =
-    Math.max(
-      0,
-      ...mockInstances.map((i) => parseInt(i.id.replace(/\D/g, ""), 10) || 0),
-    ) + 1;
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL ?? "http://localhost:3000",
+});
 
-  mockTemplates.forEach((template) => {
-    if (!enabled.includes(template.id)) return;
-    if (template.frequency === "weekly") {
-      const exists = mockInstances.some(
-        (i) =>
-          i.charId === charId &&
-          i.templateId === template.id &&
-          i.year === year &&
-          i.period === week,
-      );
-      if (!exists) {
-        mockInstances.push({
-          id: `inst-${idCounter++}`,
-          charId,
-          templateId: template.id,
-          year,
-          period: week,
-          done: false,
-          completedAt: null,
-          notes: "",
-        });
-      }
-    } else {
-      const exists = mockInstances.some(
-        (i) =>
-          i.charId === charId &&
-          i.templateId === template.id &&
-          i.year === mYear &&
-          i.period === month,
-      );
-      if (!exists) {
-        mockInstances.push({
-          id: `inst-${idCounter++}`,
-          charId,
-          templateId: template.id,
-          year: mYear,
-          period: month,
-          done: false,
-          completedAt: null,
-          notes: "",
-        });
-      }
+api.interceptors.request.use((config) => {
+  const token = authStore.getState().accessToken;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+let refreshPromise: Promise<string | null> | null = null;
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const status = error?.response?.status;
+    const originalRequest = error.config;
+
+    if (status !== 401 || originalRequest?._retry) {
+      return Promise.reject(error);
     }
-  });
-}
-import dayjs from "dayjs";
 
-const delay = (ms = 400) =>
-  new Promise((r) => setTimeout(r, ms + Math.random() * 200));
+    originalRequest._retry = true;
+
+    if (!refreshPromise) {
+      refreshPromise = refreshToken()
+        .then((tokens) => tokens.accessToken)
+        .catch(() => null)
+        .finally(() => {
+          refreshPromise = null;
+        });
+    }
+
+    const newToken = await refreshPromise;
+    if (!newToken) {
+      authStore.getState().clearSession();
+      return Promise.reject(error);
+    }
+
+    originalRequest.headers.Authorization = `Bearer ${newToken}`;
+    return api.request(originalRequest);
+  },
+);
+
+export interface AuthResponse {
+  user: { id: string; email: string };
+  accessToken: string;
+  refreshToken: string;
+}
+
+export async function register(email: string, password: string) {
+  const { data } = await api.post<AuthResponse>("/auth/register", { email, password });
+  return data;
+}
+
+export async function login(email: string, password: string) {
+  const { data } = await api.post<AuthResponse>("/auth/login", { email, password });
+  return data;
+}
+
+export async function refreshToken() {
+  const refreshTokenValue = authStore.getState().refreshToken;
+  if (!refreshTokenValue) throw new Error("Sem refresh token");
+  const { data } = await api.post<AuthResponse>("/auth/refresh", {
+    refreshToken: refreshTokenValue,
+  });
+  authStore.getState().setSession(data);
+  return data;
+}
+
+export async function getMe() {
+  const { data } = await api.get<{ id: string; email: string }>("/auth/me");
+  return data;
+}
+
+export async function logout() {
+  await api.post("/auth/logout");
+}
 
 // --- Chars ---
 export async function getChars(): Promise<Char[]> {
-  await delay();
-  return [...mockChars];
+  const { data } = await api.get<Char[]>("/chars");
+  return data;
+}
+
+export async function createChar(name: string): Promise<Char> {
+  const { data } = await api.post<Char>("/chars", { name });
+  return data;
+}
+
+export async function updateChar(id: string, name: string): Promise<Char> {
+  const { data } = await api.patch<Char>(`/chars/${id}`, { name });
+  return data;
+}
+
+export async function deleteChar(id: string): Promise<void> {
+  await api.delete(`/chars/${id}`);
 }
 
 // --- Templates ---
 export async function getTemplates(): Promise<TaskTemplate[]> {
-  await delay();
-  return [...mockTemplates];
+  const { data } = await api.get<TaskTemplate[]>("/templates");
+  return data;
 }
 
 export async function createTemplate(
   data: Omit<TaskTemplate, "id">,
 ): Promise<TaskTemplate> {
-  await delay(300);
-  const template: TaskTemplate = { ...data, id: `tpl-${Date.now()}` };
-  mockTemplates.push(template);
-  return template;
+  const response = await api.post<TaskTemplate>("/templates", data);
+  return response.data;
 }
 
 export async function updateTemplate(
   id: string,
   data: Partial<TaskTemplate>,
 ): Promise<TaskTemplate> {
-  await delay(300);
-  const idx = mockTemplates.findIndex((t) => t.id === id);
-  if (idx === -1) throw new Error("Template não encontrado");
-  mockTemplates[idx] = { ...mockTemplates[idx], ...data };
-  return mockTemplates[idx];
+  const response = await api.patch<TaskTemplate>(`/templates/${id}`, data);
+  return response.data;
 }
 
 export async function deleteTemplate(id: string): Promise<void> {
-  await delay(300);
-  const idx = mockTemplates.findIndex((t) => t.id === id);
-  if (idx !== -1) mockTemplates.splice(idx, 1);
+  await api.delete(`/templates/${id}`);
 }
 
 // --- Char Templates (quais templates cada char usa) ---
 export async function getCharTemplates(
   charId: string,
 ): Promise<CharTemplate[]> {
-  await delay();
-  return mockCharTemplates.filter((ct) => ct.charId === charId);
+  const response = await api.get<CharTemplate[]>(`/chars/${charId}/templates`);
+  return response.data;
 }
 
 export async function setCharTemplates(
   charId: string,
   templateIds: string[],
 ): Promise<CharTemplate[]> {
-  await delay(300);
-  const filtered = mockCharTemplates.filter((ct) => ct.charId !== charId);
-  templateIds.forEach((templateId) => filtered.push({ charId, templateId }));
-  mockCharTemplates.length = 0;
-  mockCharTemplates.push(...filtered);
-  return mockCharTemplates.filter((ct) => ct.charId === charId);
+  const response = await api.put<CharTemplate[]>(`/chars/${charId}/templates`, {
+    templateIds,
+  });
+  return response.data;
 }
 
 // --- Task Instances ---
@@ -149,102 +165,26 @@ export interface GetTaskInstancesParams {
 export async function getTaskInstances(
   params: GetTaskInstancesParams,
 ): Promise<TaskInstanceEnriched[]> {
-  await delay();
-  const { charId, frequency } = params;
-
-  ensureInstancesForChar(charId);
-
-  let filtered = mockInstances.filter((t) => t.charId === charId);
-
-  if (frequency) {
-    const templateIds = mockTemplates
-      .filter((t) => t.frequency === frequency)
-      .map((t) => t.id);
-    filtered = filtered.filter((t) => templateIds.includes(t.templateId));
-  }
-
-  const templates = mockTemplates;
-  if (frequency === "weekly") {
-    const { year, week } = getCurrentWeeklyPeriod();
-    filtered = filtered.filter((t) => t.year === year && t.period === week);
-  } else if (frequency === "monthly") {
-    const { year, month } = getCurrentMonthlyPeriod();
-    filtered = filtered.filter((t) => t.year === year && t.period === month);
-  }
-
-  return filtered.map((inst) => {
-    const char = mockChars.find((c) => c.id === inst.charId);
-    const template = templates.find((t) => t.id === inst.templateId);
-    return {
-      ...inst,
-      charName: char?.name ?? "Desconhecido",
-      templateName: template?.name ?? "Desconhecido",
-      frequency: (template?.frequency ?? "weekly") as "weekly" | "monthly",
-    };
-  });
+  const response = await api.get<TaskInstanceEnriched[]>("/tasks", { params });
+  return response.data;
 }
 
 export async function updateTaskStatus(
   id: string,
   done: boolean,
 ): Promise<TaskInstance> {
-  await delay(200);
-  const idx = mockInstances.findIndex((t) => t.id === id);
-  if (idx === -1) throw new Error("Tarefa não encontrada");
-  mockInstances[idx] = {
-    ...mockInstances[idx],
-    done,
-    completedAt: done ? dayjs().toISOString() : null,
-  };
-  return mockInstances[idx];
+  const response = await api.patch<TaskInstance>(`/tasks/${id}/status`, { done });
+  return response.data;
 }
 
 // --- Dashboard (por char ou resumo de todos) ---
 export async function getDashboardSummary(
   charId?: string,
 ): Promise<DashboardSummary> {
-  await delay();
-
-  const { year, week } = getCurrentWeeklyPeriod();
-  const { year: mYear, month } = getCurrentMonthlyPeriod();
-
-  const currentInstances = mockInstances.filter((t) => {
-    if (charId && t.charId !== charId) return false;
-    if (
-      mockTemplates.find((tp) => tp.id === t.templateId)?.frequency === "weekly"
-    ) {
-      return t.year === year && t.period === week;
-    }
-    return t.year === mYear && t.period === month;
+  const response = await api.get<DashboardSummary>("/dashboard", {
+    params: { charId },
   });
-
-  const total = currentInstances.length;
-  const completed = currentInstances.filter((t) => t.done).length;
-
-  const charsToShow = charId
-    ? mockChars.filter((c) => c.id === charId)
-    : mockChars;
-  const charProgress = charsToShow.map((char) => {
-    const charTasks = currentInstances.filter((t) => t.charId === char.id);
-    const charCompleted = charTasks.filter((t) => t.done).length;
-    return {
-      charId: char.id,
-      charName: char.name,
-      total: charTasks.length,
-      completed: charCompleted,
-      percentage:
-        charTasks.length > 0
-          ? Math.round((charCompleted / charTasks.length) * 100)
-          : 0,
-    };
-  });
-
-  return {
-    totalTasks: total,
-    completedTasks: completed,
-    completionPercentage: total > 0 ? Math.round((completed / total) * 100) : 0,
-    charProgress,
-  };
+  return response.data;
 }
 
 // --- Histórico de períodos ---
@@ -257,17 +197,6 @@ export interface GetPeriodHistoryParams {
 export async function getPeriodHistory(
   params: GetPeriodHistoryParams,
 ): Promise<PeriodSnapshot[]> {
-  await delay();
-  const { charId, frequency, limit = 20 } = params;
-
-  let filtered = mockPeriodSnapshots.filter((s) => s.charId === charId);
-  if (frequency) {
-    filtered = filtered.filter((s) => s.frequency === frequency);
-  }
-
-  filtered.sort(
-    (a, b) =>
-      new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime(),
-  );
-  return filtered.slice(0, limit);
+  const response = await api.get<PeriodSnapshot[]>("/history", { params });
+  return response.data;
 }

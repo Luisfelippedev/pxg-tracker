@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useChar } from "@/contexts/CharContext";
 import {
   useTemplates,
@@ -25,13 +25,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { Settings2, Plus, Trash2, ChevronDown } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Settings2, Plus, Trash2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -49,7 +44,7 @@ const freqLabel = (f: TaskFrequency) => (f === "weekly" ? "Semanal" : "Mensal");
 
 export default function TemplatesPage() {
   const [open, setOpen] = useState(false);
-  const [charTemplatesOpen, setCharTemplatesOpen] = useState(false);
+  const [draftTemplateIds, setDraftTemplateIds] = useState<string[]>([]);
   const { selectedChar } = useChar();
   const { data: templates, isLoading } = useTemplates();
   const { data: charTemplates, isLoading: loadingCharTemplates } =
@@ -63,9 +58,22 @@ export default function TemplatesPage() {
     defaultValues: { name: "", frequency: "weekly" },
   });
 
-  const enabledTemplateIds = new Set(
-    charTemplates?.map((ct) => ct.templateId) ?? [],
+  const enabledTemplateIds = useMemo(
+    () => (charTemplates?.map((ct) => ct.templateId) ?? []).sort(),
+    [charTemplates],
   );
+  const draftEnabledSet = useMemo(
+    () => new Set(draftTemplateIds),
+    [draftTemplateIds],
+  );
+  const isDirty = useMemo(() => {
+    if (draftTemplateIds.length !== enabledTemplateIds.length) return true;
+    return draftTemplateIds.some((id) => !enabledTemplateIds.includes(id));
+  }, [draftTemplateIds, enabledTemplateIds]);
+
+  useEffect(() => {
+    setDraftTemplateIds(enabledTemplateIds);
+  }, [enabledTemplateIds, selectedChar?.id]);
 
   const onSubmit = (data: TemplateForm) => {
     createTemplate.mutate(
@@ -87,14 +95,28 @@ export default function TemplatesPage() {
   };
 
   const handleToggleTemplate = (templateId: string, checked: boolean) => {
+    setDraftTemplateIds((prev) => {
+      const set = new Set(prev);
+      if (checked) {
+        set.add(templateId);
+      } else {
+        set.delete(templateId);
+      }
+      return [...set].sort();
+    });
+  };
+
+  const handleSave = () => {
     if (!selectedChar) return;
-    const newIds = checked
-      ? [...enabledTemplateIds, templateId]
-      : [...enabledTemplateIds].filter((id) => id !== templateId);
     setCharTemplates.mutate(
-      { charId: selectedChar.id, templateIds: newIds },
-      { onSuccess: () => toast.success("Templates atualizados!") },
+      { charId: selectedChar.id, templateIds: draftTemplateIds },
+      { onSuccess: () => toast.success("Templates ativos salvos!") },
     );
+  };
+
+  const handleReset = () => {
+    setDraftTemplateIds(enabledTemplateIds);
+    toast.info("Alterações locais redefinidas.");
   };
 
   return (
@@ -107,80 +129,30 @@ export default function TemplatesPage() {
           Templates de Tarefas
         </h1>
         <p className="text-muted-foreground text-sm mt-1.5 pl-12">
-          Crie templates e escolha quais usar em cada char
+          Catálogo global de templates. Marque "Ativo" para incluir no char selecionado.
         </p>
       </div>
 
-      {/* Templates por char */}
-      <Collapsible open={charTemplatesOpen} onOpenChange={setCharTemplatesOpen}>
-        <div className="rounded-xl border border-border gradient-card overflow-hidden shadow-card">
-          <CollapsibleTrigger asChild>
-            <button className="w-full flex items-center justify-between px-5 py-4 hover:bg-muted/30 transition-colors text-left">
-              <span className="font-display font-bold">
-                Templates por char{" "}
-                {selectedChar ? `— ${selectedChar.name}` : ""}
-              </span>
-              <ChevronDown
-                className={`h-5 w-5 text-muted-foreground transition-transform ${charTemplatesOpen ? "rotate-180" : ""}`}
-              />
-            </button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="px-5 pb-5 pt-0">
-              {!selectedChar ? (
-                <p className="text-sm text-muted-foreground py-4">
-                  Selecione um char na sidebar para configurar quais templates
-                  ele usa.
-                </p>
-              ) : loadingCharTemplates ? (
-                <SkeletonTable rows={3} />
-              ) : (
-                <div className="space-y-2">
-                  {templates?.map((t) => (
-                    <div
-                      key={t.id}
-                      className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-muted/30"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Checkbox
-                          id={`tpl-${t.id}`}
-                          checked={enabledTemplateIds.has(t.id)}
-                          onCheckedChange={(checked) =>
-                            handleToggleTemplate(t.id, checked === true)
-                          }
-                        />
-                        <label
-                          htmlFor={`tpl-${t.id}`}
-                          className="text-sm font-medium cursor-pointer"
-                        >
-                          {t.name}
-                        </label>
-                        <span
-                          className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium border ${
-                            t.frequency === "weekly"
-                              ? "bg-primary/8 text-primary border-primary/20"
-                              : "bg-accent/10 text-accent border-accent/20"
-                          }`}
-                        >
-                          {freqLabel(t.frequency)}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                  {(!templates || templates.length === 0) && (
-                    <p className="text-sm text-muted-foreground py-2">
-                      Crie templates abaixo para habilitá-los por char.
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-          </CollapsibleContent>
-        </div>
-      </Collapsible>
-
       {/* Lista global de templates + criar */}
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!selectedChar || !isDirty || setCharTemplates.isPending}
+            onClick={handleReset}
+          >
+            Redefinir
+          </Button>
+          <Button
+            type="button"
+            disabled={!selectedChar || !isDirty || setCharTemplates.isPending}
+            onClick={handleSave}
+            className="gradient-primary text-primary-foreground font-semibold shadow-primary"
+          >
+            Salvar
+          </Button>
+        </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button className="gradient-primary text-primary-foreground font-semibold shadow-primary hover:opacity-90 transition-opacity">
@@ -257,6 +229,9 @@ export default function TemplatesPage() {
                 <th className="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                   Frequência
                 </th>
+                <th className="px-5 py-3.5 text-center text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                  {selectedChar ? `Ativo (${selectedChar.name})` : "Ativo"}
+                </th>
                 <th className="px-5 py-3.5 text-right text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                   Ações
                 </th>
@@ -279,6 +254,17 @@ export default function TemplatesPage() {
                     >
                       {freqLabel(t.frequency)}
                     </span>
+                  </td>
+                  <td className="px-5 py-3.5 text-center">
+                    <div className="flex justify-center">
+                      <Switch
+                        checked={draftEnabledSet.has(t.id)}
+                        disabled={!selectedChar || loadingCharTemplates}
+                        onCheckedChange={(checked) =>
+                          handleToggleTemplate(t.id, checked)
+                        }
+                      />
+                    </div>
                   </td>
                   <td className="px-5 py-3.5 text-right">
                     <Button

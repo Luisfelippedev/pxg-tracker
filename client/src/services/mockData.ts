@@ -145,7 +145,7 @@ function generatePeriodSnapshots(): PeriodSnapshot[] {
 }
 
 export let mockInstances: TaskInstance[] = generateInstances();
-export let mockPeriodSnapshots: PeriodSnapshot[] = generatePeriodSnapshots();
+export const mockPeriodSnapshots: PeriodSnapshot[] = generatePeriodSnapshots();
 
 /** Regenera instâncias mock (simula reset ao mudar de semana/mês). Backend fará isso via job. */
 export function resetMockInstances() {
