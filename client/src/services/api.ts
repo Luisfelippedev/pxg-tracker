@@ -6,6 +6,7 @@ import {
   DashboardSummary,
   AdminDashboardEntry,
   DropsSummary,
+  MonthlyCycleSummary,
   PeriodSnapshot,
   TaskFrequency,
   TaskInstance,
@@ -284,6 +285,15 @@ export async function getDropsSummary(params: {
   frequency?: "weekly" | "monthly";
 }): Promise<DropsSummary> {
   const { data } = await api.get<DropsSummary>("/drops", { params });
+  return data;
+}
+
+export async function getMonthlyCycle(params: {
+  charId: string;
+}): Promise<MonthlyCycleSummary> {
+  const { data } = await api.get<MonthlyCycleSummary>("/drops/cycle", {
+    params,
+  });
   return data;
 }
 

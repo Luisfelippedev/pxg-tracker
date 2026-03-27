@@ -6,6 +6,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Char } from '../../chars/char.entity';
+import { LootSnapshotData } from './loot-snapshot.types';
 
 @Entity('period_snapshots')
 export class PeriodSnapshot {
@@ -32,6 +33,9 @@ export class PeriodSnapshot {
 
   @Column({ type: 'timestamp' })
   completedAt!: Date;
+
+  @Column({ type: 'jsonb', nullable: true })
+  lootData!: LootSnapshotData | null;
 
   @ManyToOne(() => Char, (char) => char.snapshots, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'charId' })

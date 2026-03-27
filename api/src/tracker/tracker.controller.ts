@@ -114,6 +114,14 @@ export class TrackerController {
     return this.trackerService.getDashboardSummary(user.sub, charId);
   }
 
+  @Get('drops/cycle')
+  getMonthlyCycle(
+    @CurrentUser() user: { sub: string },
+    @Query('charId') charId: string,
+  ) {
+    return this.trackerService.getMonthlyCycleSummary(user.sub, charId);
+  }
+
   @Get('drops')
   getDropsSummary(
     @CurrentUser() user: { sub: string },
@@ -137,7 +145,7 @@ export class TrackerController {
     return this.trackerService.getHistory(user.sub, {
       charId,
       frequency,
-      limit: limit ? Number(limit) : 20,
+      limit: limit ? Number(limit) : 52,
     });
   }
 }

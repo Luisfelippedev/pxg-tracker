@@ -3,10 +3,10 @@ import * as api from "@/services/api";
 import {
   DashboardSummary,
   DropsSummary,
+  MonthlyCycleSummary,
   TaskFrequency,
   TaskInstanceEnriched,
   TaskLootLine,
-  TemplateItem,
 } from "@/types";
 
 export function useChars(enabled = true) {
@@ -229,10 +229,19 @@ export function useDropsSummary(
   });
 }
 
+export function useMonthlyCycle(charId: string | null) {
+  return useQuery<MonthlyCycleSummary>({
+    queryKey: ["drops-cycle", charId],
+    queryFn: () => api.getMonthlyCycle({ charId: charId! }),
+    enabled: !!charId,
+    staleTime: 30_000,
+  });
+}
+
 export function usePeriodHistory(charId: string | null, frequency?: TaskFrequency) {
   return useQuery({
     queryKey: ["period-history", charId, frequency],
-    queryFn: () => api.getPeriodHistory({ charId: charId!, frequency }),
+    queryFn: () => api.getPeriodHistory({ charId: charId!, frequency, limit: 52 }),
     enabled: !!charId,
     staleTime: 30_000,
   });

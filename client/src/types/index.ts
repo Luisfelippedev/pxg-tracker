@@ -112,11 +112,17 @@ export interface PeriodSnapshot {
   totalTasks: number;
   completedTasks: number;
   completedAt: string;
+  lootData: LootSnapshotData | null;
 }
 
 // ---------------------------------------------------------------------------
 // Drops / Loot Management
 // ---------------------------------------------------------------------------
+
+export interface LootSnapshotData {
+  npcTotal: number;
+  items: LootSnapshotItem[];
+}
 
 export interface LootSnapshotItem {
   slug: string;
@@ -160,6 +166,60 @@ export interface DropsSummary {
     periodsWithDrops: number;
     bestPeriodNpc: number;
     bestPeriodLabel: string;
+    avgNpc: number;
+    streak: number;
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Monthly Cycle (unified weekly + monthly by calendar month)
+// ---------------------------------------------------------------------------
+
+export interface WeeklyBreakdownEntry {
+  year: number;
+  week: number;
+  weekLabel: string;
+  npcTotal: number;
+  items: LootSnapshotItem[];
+  rareItems: LootSnapshotItem[];
+}
+
+export interface MonthlyHistoryEntry {
+  year: number;
+  month: number;
+  label: string;
+  npcTotal: number;
+  rareItemCount: number;
+  completedTasks: number;
+  totalTasks: number;
+  items: LootSnapshotItem[];
+  weeks: Array<{
+    year: number;
+    week: number;
+    weekLabel: string;
+    npcTotal: number;
+    rareItemCount: number;
+  }>;
+}
+
+export interface MonthlyCycleSummary {
+  currentCycle: {
+    year: number;
+    month: number;
+    label: string;
+    npcTotal: number;
+    items: LootSnapshotItem[];
+    rareItems: LootSnapshotItem[];
+    completedLootTasks: number;
+    weeklyBreakdown: WeeklyBreakdownEntry[];
+  };
+  history: MonthlyHistoryEntry[];
+  allTime: {
+    npcTotal: number;
+    rareItemsCollected: number;
+    periodsWithDrops: number;
+    bestMonthNpc: number;
+    bestMonthLabel: string;
     avgNpc: number;
     streak: number;
   };

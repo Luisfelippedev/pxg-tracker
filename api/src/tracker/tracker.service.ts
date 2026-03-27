@@ -357,7 +357,7 @@ export class TrackerService {
       limit?: number;
     },
   ) {
-    const { charId, frequency, limit = 20 } = params;
+    const { charId, frequency, limit = 52 } = params;
     await this.ensureOwnedChar(userId, charId);
 
     return this.periodSnapshotRepository.find({
@@ -484,7 +484,12 @@ export class TrackerService {
     }
 
     // Ordena períodos: mais recente primeiro
-    const historyKeys = [...periodMap.keys()].sort((a, b) => {
+    // Inclui tanto períodos com instâncias de loot quanto períodos só com snapshot
+    const snapshotHistKeys = [...snapshotMap.keys()].filter(
+      (k) => k !== `${currentYear}:${currentPeriod}`,
+    );
+    const allHistKeySet = new Set([...periodMap.keys(), ...snapshotHistKeys]);
+    const historyKeys = [...allHistKeySet].sort((a, b) => {
       const [ay, ap] = a.split(':').map(Number);
       const [by, bp] = b.split(':').map(Number);
       return ay !== by ? by - ay : bp - ap;
@@ -492,9 +497,11 @@ export class TrackerService {
 
     const history = historyKeys.map((key) => {
       const [year, period] = key.split(':').map(Number);
-      const instances = periodMap.get(key)!;
+      const instances = periodMap.get(key) ?? [];
       const snap = snapshotMap.get(key);
-      const lootData = this.buildLootSnapshot(instances, templateItems);
+      // Prefere lootData do snapshot quando disponível (dados congelados no reset)
+      const lootData =
+        snap?.lootData ?? this.buildLootSnapshot(instances, templateItems);
       const rareItemCount = lootData.items
         .filter((i) => i.isRare)
         .reduce((s, i) => s + i.quantity, 0);
@@ -569,6 +576,301 @@ export class TrackerService {
         streak,
       },
     };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Monthly Cycle Summary (unified weekly + monthly by calendar month)
+  // ---------------------------------------------------------------------------
+
+  async getMonthlyCycleSummary(userId: string, charId: string) {
+    await this.ensureOwnedChar(userId, charId);
+
+    const now = dayjs();
+    const currentYear = now.year();
+    const currentMonth = now.month() + 1;
+
+    // ISO weeks whose Monday falls within the current calendar month
+    const weeksInMonth = this.getIsoWeeksForMonth(currentYear, currentMonth);
+
+    // All instances for this char (same approach as getDropsSummary)
+    const allInstances = await this.taskInstanceRepository.find({
+      where: { charId },
+      relations: ['template'],
+    });
+
+    // Current cycle: completed loot tasks from this calendar month
+    const currentMonthlyInst = allInstances.filter(
+      (i) =>
+        i.template.frequency === 'monthly' &&
+        i.year === currentYear &&
+        i.period === currentMonth &&
+        i.done &&
+        (i.loot?.length ?? 0) > 0,
+    );
+
+    const currentWeeklyInst = allInstances.filter(
+      (i) =>
+        i.template.frequency === 'weekly' &&
+        i.done &&
+        (i.loot?.length ?? 0) > 0 &&
+        weeksInMonth.some((w) => w.year === i.year && w.week === i.period),
+    );
+
+    const currentInstances = [...currentMonthlyInst, ...currentWeeklyInst];
+
+    const currentTemplateIds = [
+      ...new Set(currentInstances.map((i) => i.templateId)),
+    ];
+    const currentTemplateItems =
+      currentTemplateIds.length > 0
+        ? await this.templateItemRepository.find({
+            where: { templateId: In(currentTemplateIds) },
+          })
+        : [];
+
+    const currentLoot = this.buildLootSnapshot(
+      currentInstances,
+      currentTemplateItems,
+    );
+
+    // Weekly breakdown within the current month
+    const weeklyBreakdown = weeksInMonth
+      .map(({ year: wy, week }) => {
+        const weekInsts = currentWeeklyInst.filter(
+          (i) => i.year === wy && i.period === week,
+        );
+        if (weekInsts.length === 0) return null;
+        const loot = this.buildLootSnapshot(weekInsts, currentTemplateItems);
+        if (loot.items.length === 0) return null;
+        return {
+          year: wy,
+          week,
+          weekLabel: `S${week}/${wy}`,
+          npcTotal: loot.npcTotal,
+          items: loot.items.filter((i) => !i.isRare),
+          rareItems: loot.items.filter((i) => i.isRare),
+        };
+      })
+      .filter((w): w is NonNullable<typeof w> => w !== null);
+
+    // ── History: group PeriodSnapshots by calendar month ──
+    const allSnapshots = await this.periodSnapshotRepository.find({
+      where: { charId },
+    });
+
+    type MonthData = {
+      npcTotal: number;
+      items: LootSnapshotItem[];
+      totalTasks: number;
+      completedTasks: number;
+      weeks: Array<{
+        year: number;
+        week: number;
+        weekLabel: string;
+        npcTotal: number;
+        rareItemCount: number;
+      }>;
+    };
+    const monthMap = new Map<string, MonthData>();
+
+    for (const snap of allSnapshots) {
+      let snapYear: number;
+      let snapMonth: number;
+
+      if (snap.frequency === 'monthly') {
+        snapYear = snap.year;
+        snapMonth = snap.period;
+      } else {
+        const monday = this.isoWeekMonday(snap.year, snap.period);
+        snapYear = monday.year();
+        snapMonth = monday.month() + 1;
+      }
+
+      if (snapYear === currentYear && snapMonth === currentMonth) continue;
+
+      const key = `${snapYear}:${snapMonth}`;
+      const existing: MonthData = monthMap.get(key) ?? {
+        npcTotal: 0,
+        items: [],
+        totalTasks: 0,
+        completedTasks: 0,
+        weeks: [],
+      };
+
+      if (snap.lootData) {
+        existing.npcTotal += snap.lootData.npcTotal;
+        for (const item of snap.lootData.items) {
+          const existingItem = existing.items.find(
+            (i) =>
+              i.slug === item.slug && i.templateName === item.templateName,
+          );
+          if (existingItem) {
+            existingItem.quantity += item.quantity;
+            existingItem.npcTotal += item.npcTotal;
+          } else {
+            existing.items.push({ ...item });
+          }
+        }
+      }
+
+      existing.totalTasks += snap.totalTasks;
+      existing.completedTasks += snap.completedTasks;
+
+      if (snap.frequency === 'weekly') {
+        existing.weeks.push({
+          year: snap.year,
+          week: snap.period,
+          weekLabel: `S${snap.period}/${snap.year}`,
+          npcTotal: snap.lootData?.npcTotal ?? 0,
+          rareItemCount:
+            snap.lootData?.items
+              .filter((i) => i.isRare)
+              .reduce((s, i) => s + i.quantity, 0) ?? 0,
+        });
+      }
+
+      monthMap.set(key, existing);
+    }
+
+    const history = [...monthMap.entries()]
+      .map(([key, data]) => {
+        const [year, month] = key.split(':').map(Number);
+        const rareItemCount = data.items
+          .filter((i) => i.isRare)
+          .reduce((s, i) => s + i.quantity, 0);
+        return {
+          year,
+          month,
+          label: this.formatPeriodLabel('monthly', year, month),
+          npcTotal: data.npcTotal,
+          rareItemCount,
+          completedTasks: data.completedTasks,
+          totalTasks: data.totalTasks,
+          items: data.items,
+          weeks: data.weeks.sort((a, b) => b.year - a.year || b.week - a.week),
+        };
+      })
+      .sort((a, b) => b.year - a.year || b.month - a.month);
+
+    // ── All-time stats ──
+    const allNpcValues = [
+      currentLoot.npcTotal,
+      ...history.map((h) => h.npcTotal),
+    ];
+    const allTimeNpc = allNpcValues.reduce((s, n) => s + n, 0);
+    const periodsWithDrops =
+      (currentLoot.npcTotal > 0 ? 1 : 0) +
+      history.filter((h) => h.npcTotal > 0).length;
+
+    const nonZeroNpc = allNpcValues.filter((v) => v > 0);
+    const avgNpc =
+      nonZeroNpc.length > 0
+        ? Math.round(
+            nonZeroNpc.reduce((s, n) => s + n, 0) / nonZeroNpc.length,
+          )
+        : 0;
+
+    const bestMonthNpc =
+      allNpcValues.length > 0 ? Math.max(...allNpcValues) : 0;
+    let bestMonthLabel = this.formatPeriodLabel(
+      'monthly',
+      currentYear,
+      currentMonth,
+    );
+    if (bestMonthNpc !== currentLoot.npcTotal || bestMonthNpc === 0) {
+      const best = history.find((h) => h.npcTotal === bestMonthNpc);
+      if (best) bestMonthLabel = best.label;
+    }
+
+    const totalRareItemsCollected = [
+      ...currentLoot.items.filter((i) => i.isRare),
+      ...history.flatMap((h) => h.items.filter((i) => i.isRare)),
+    ].reduce((s, i) => s + i.quantity, 0);
+
+    let streak = 0;
+    if (currentLoot.npcTotal > 0) streak++;
+    for (const h of history) {
+      if (h.npcTotal > 0) streak++;
+      else break;
+    }
+
+    return {
+      currentCycle: {
+        year: currentYear,
+        month: currentMonth,
+        label: this.formatPeriodLabel('monthly', currentYear, currentMonth),
+        npcTotal: currentLoot.npcTotal,
+        items: currentLoot.items.filter((i) => !i.isRare),
+        rareItems: currentLoot.items.filter((i) => i.isRare),
+        completedLootTasks: currentInstances.length,
+        weeklyBreakdown,
+      },
+      history,
+      allTime: {
+        npcTotal: allTimeNpc,
+        rareItemsCollected: totalRareItemsCollected,
+        periodsWithDrops,
+        bestMonthNpc,
+        bestMonthLabel,
+        avgNpc,
+        streak,
+      },
+    };
+  }
+
+  /** ISO weeks whose Monday falls within the given calendar month. */
+  private getIsoWeeksForMonth(
+    year: number,
+    month: number,
+  ): Array<{ year: number; week: number }> {
+    const monthStr = String(month).padStart(2, '0');
+    const monthStart = dayjs(`${year}-${monthStr}-01`);
+    const monthEnd = monthStart.endOf('month');
+    const result: Array<{ year: number; week: number }> = [];
+
+    let d = monthStart.startOf('isoWeek');
+    while (!d.isAfter(monthEnd)) {
+      if (d.year() === year && d.month() + 1 === month) {
+        result.push({ year: d.isoWeekYear(), week: d.isoWeek() });
+      }
+      d = d.add(1, 'week');
+    }
+    return result;
+  }
+
+  /** Returns the Monday (dayjs) of a given ISO year+week. */
+  private isoWeekMonday(isoYear: number, isoWeek: number): dayjs.Dayjs {
+    // Jan 4 of the ISO year is always in ISO week 1
+    const jan4 = dayjs(`${isoYear}-01-04`);
+    return jan4.startOf('isoWeek').add(isoWeek - 1, 'week');
+  }
+
+  private async buildLootSnapshotForPeriod(
+    charId: string,
+    frequency: 'weekly' | 'monthly',
+    year: number,
+    period: number,
+  ): Promise<LootSnapshotData> {
+    const instances = await this.taskInstanceRepository.find({
+      where: { charId, year, period },
+      relations: ['template'],
+    });
+
+    const lootInstances = instances.filter(
+      (i) =>
+        i.template.frequency === frequency &&
+        i.done &&
+        (i.loot?.length ?? 0) > 0,
+    );
+
+    if (lootInstances.length === 0) return { npcTotal: 0, items: [] };
+
+    const templateIds = [...new Set(lootInstances.map((i) => i.templateId))];
+    const templateItems = await this.templateItemRepository.find({
+      where: { templateId: In(templateIds) },
+    });
+
+    return this.buildLootSnapshot(lootInstances, templateItems);
   }
 
   private buildLootSnapshot(
@@ -675,6 +977,12 @@ export class TrackerService {
         },
       });
       if (!exists) {
+        const lootData = await this.buildLootSnapshotForPeriod(
+          charId,
+          'weekly',
+          prevYear,
+          prevWeekNum,
+        );
         await this.periodSnapshotRepository.save(
           this.periodSnapshotRepository.create({
             charId,
@@ -684,6 +992,7 @@ export class TrackerService {
             totalTasks: stats.total,
             completedTasks: stats.completed,
             completedAt: prevWeek.endOf('isoWeek').toDate(),
+            lootData: lootData.items.length > 0 ? lootData : null,
           }),
         );
       }
@@ -740,6 +1049,12 @@ export class TrackerService {
         },
       });
       if (!exists) {
+        const lootData = await this.buildLootSnapshotForPeriod(
+          charId,
+          'monthly',
+          prevYear,
+          prevMonthNum,
+        );
         await this.periodSnapshotRepository.save(
           this.periodSnapshotRepository.create({
             charId,
@@ -749,6 +1064,7 @@ export class TrackerService {
             totalTasks: stats.total,
             completedTasks: stats.completed,
             completedAt: prevMonth.endOf('month').toDate(),
+            lootData: lootData.items.length > 0 ? lootData : null,
           }),
         );
       }
