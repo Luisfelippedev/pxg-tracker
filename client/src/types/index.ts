@@ -4,12 +4,43 @@ export interface Char {
   name: string;
 }
 
+export type UserRole = "admin" | "user";
+
 export type TaskFrequency = "weekly" | "monthly";
+
+export type TaskTemplateKind = "standard" | "loot";
 
 export interface TaskTemplate {
   id: string;
   name: string;
   frequency: TaskFrequency;
+  kind: TaskTemplateKind;
+  presetKey: string | null;
+  scope?: "user" | "global";
+}
+
+export interface TemplateItem {
+  id: string;
+  templateId: string;
+  itemSlug: string;
+  itemName: string;
+  spritePath: string;
+  isRare: boolean;
+  npcPriceDollars: number | null;
+}
+
+export interface GameItem {
+  slug: string;
+  name: string;
+  defaultSpritePath: string;
+  hasRealSprite: boolean;
+  usedPlaceholder: boolean;
+}
+
+export interface TaskLootLine {
+  slug: string;
+  quantity: number;
+  npcUnitPriceDollars: number;
 }
 
 /** Indica quais templates um char usa. Backend: char_template */
@@ -40,18 +71,23 @@ export interface TaskInstance {
   done: boolean;
   completedAt: string | null;
   notes: string;
+  loot: TaskLootLine[] | null;
 }
 
 export interface TaskInstanceEnriched extends TaskInstance {
   charName: string;
   templateName: string;
   frequency: TaskFrequency;
+  templateKind: TaskTemplateKind;
+  presetKey: string | null;
 }
 
 export interface DashboardSummary {
   totalTasks: number;
   completedTasks: number;
   completionPercentage: number;
+  /** Soma (qty × preço unitário NPC) por presetKey, período semanal atual do char */
+  weeklyLootNpcByPreset: Record<string, number>;
   charProgress: Array<{
     charId: string;
     charName: string;
@@ -59,6 +95,11 @@ export interface DashboardSummary {
     completed: number;
     percentage: number;
   }>;
+}
+
+export interface AdminDashboardEntry {
+  user: { id: string; email: string; role: UserRole };
+  dashboard: DashboardSummary;
 }
 
 /** Snapshot de um período concluído para histórico. Backend: period_snapshot */

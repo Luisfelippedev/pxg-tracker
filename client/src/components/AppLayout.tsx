@@ -11,6 +11,7 @@ import {
   UserPlus,
   ChevronRight,
 } from "lucide-react";
+import { authStore } from "@/stores/authStore";
 import { useChar } from "@/contexts/CharContext";
 import { useChars } from "@/hooks/useTaskData";
 import {
@@ -22,8 +23,9 @@ import {
 } from "@/components/ui/select";
 import { getStoredCharId } from "@/contexts/CharContext";
 import ProfileCard from "@/components/ProfileCard";
+import { decodeJwt } from "@/lib/jwt";
 
-const navItems = [
+const userNavItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/weekly", icon: CalendarDays, label: "Semanais" },
   { to: "/monthly", icon: CalendarRange, label: "Mensais" },
@@ -33,10 +35,25 @@ const navItems = [
   { to: "/profile", icon: User, label: "Perfil" },
 ];
 
+const adminNavItems = [
+  { to: "/admin/usuarios", icon: Users, label: "Usuários" },
+  { to: "/admin/templates", icon: Settings2, label: "Templates" },
+  { to: "/profile", icon: User, label: "Perfil" },
+];
+
 function AppSidebar() {
   const location = useLocation();
   const { selectedChar, setSelectedChar } = useChar();
-  const { data: chars } = useChars();
+  const accessToken = authStore((s) => s.accessToken);
+  const roleInStore = authStore((s) => s.user?.role);
+
+  const roleFromToken = accessToken?.trim()
+    ? decodeJwt(accessToken)?.role
+    : null;
+  const role = roleInStore ?? roleFromToken;
+  const isAdmin = role === "admin";
+  const { data: chars } = useChars(!isAdmin);
+  const navItems = role === "admin" ? adminNavItems : userNavItems;
 
   useEffect(() => {
     if (!chars || chars.length === 0 || selectedChar) return;
@@ -68,7 +85,7 @@ function AppSidebar() {
             </p>
           </div>
         </div>
-        {chars && chars.length === 0 ? (
+        {!isAdmin && chars && chars.length === 0 ? (
           <Link
             to="/chars"
             className="flex w-full items-center justify-between gap-2 rounded-md border border-input bg-muted/50 px-3 py-2 h-9 text-sm text-primary hover:bg-primary/10 hover:border-primary/20 transition-colors"
@@ -79,6 +96,12 @@ function AppSidebar() {
             </span>
             <ChevronRight className="h-4 w-4 opacity-70" />
           </Link>
+        ) : isAdmin ? (
+          <div className="flex w-full items-center gap-2 rounded-md border border-border bg-muted/20 px-3 py-2 h-9 text-sm text-muted-foreground">
+            <span className="text-[11px] uppercase tracking-[0.15em] font-semibold">
+              Modo admin
+            </span>
+          </div>
         ) : (
           <Select
             value={selectedChar?.id ?? ""}

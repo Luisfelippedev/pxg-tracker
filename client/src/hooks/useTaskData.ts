@@ -1,12 +1,24 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as api from "@/services/api";
-import { DashboardSummary, TaskFrequency, TaskInstanceEnriched } from "@/types";
+import {
+  DashboardSummary,
+  TaskFrequency,
+  TaskInstanceEnriched,
+  TaskLootLine,
+  TemplateItem,
+} from "@/types";
 
-export function useChars() {
+export function useChars(enabled = true) {
   return useQuery({
     queryKey: ["chars"],
     queryFn: api.getChars,
+    enabled,
     staleTime: 60_000,
+    retry: (failureCount, error: any) => {
+      const status = error?.response?.status;
+      if (status === 403) return false;
+      return failureCount < 2;
+    },
   });
 }
 
@@ -51,6 +63,15 @@ export function useTemplates() {
   });
 }
 
+export function useTemplateItems(templateId: string | null) {
+  return useQuery({
+    queryKey: ["template-items", templateId],
+    queryFn: () => api.getTemplateItems(templateId!),
+    enabled: !!templateId,
+    staleTime: 10_000,
+  });
+}
+
 export function useCharTemplates(charId: string | null) {
   return useQuery({
     queryKey: ["char-templates", charId],
@@ -90,8 +111,16 @@ export function useTaskInstances(filters: TaskInstancesFilters) {
 export function useUpdateTaskStatus() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, done }: { id: string; done: boolean }) => api.updateTaskStatus(id, done),
-    onMutate: async ({ id, done }) => {
+    mutationFn: ({
+      id,
+      done,
+      loot,
+    }: {
+      id: string;
+      done: boolean;
+      loot?: TaskLootLine[] | null;
+    }) => api.updateTaskStatus(id, done, loot),
+    onMutate: async ({ id, done, loot }) => {
       await queryClient.cancelQueries({ queryKey: ["tasks"] });
       await queryClient.cancelQueries({ queryKey: ["dashboard"] });
 
@@ -108,7 +137,12 @@ export function useUpdateTaskStatus() {
         if (!current) continue;
         const next = current.map((task) =>
           task.id === id
-            ? { ...task, done, completedAt: done ? nowIso : null }
+            ? {
+                ...task,
+                done,
+                completedAt: done ? nowIso : null,
+                loot: done ? (loot !== undefined ? loot : task.loot) : null,
+              }
             : task,
         );
         queryClient.setQueryData(key, next);

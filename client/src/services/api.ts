@@ -4,10 +4,15 @@ import {
   Char,
   CharTemplate,
   DashboardSummary,
+  AdminDashboardEntry,
   PeriodSnapshot,
+  TaskFrequency,
   TaskInstance,
   TaskInstanceEnriched,
+  TaskLootLine,
   TaskTemplate,
+  TemplateItem,
+  GameItem,
 } from "@/types";
 
 const api = axios.create({
@@ -56,7 +61,7 @@ api.interceptors.response.use(
 );
 
 export interface AuthResponse {
-  user: { id: string; email: string };
+  user: { id: string; email: string; role: "admin" | "user" };
   accessToken: string;
   refreshToken: string;
 }
@@ -82,7 +87,7 @@ export async function refreshToken() {
 }
 
 export async function getMe() {
-  const { data } = await api.get<{ id: string; email: string }>("/auth/me");
+  const { data } = await api.get<{ id: string; email: string; role: "admin" | "user" }>("/auth/me");
   return data;
 }
 
@@ -116,16 +121,17 @@ export async function getTemplates(): Promise<TaskTemplate[]> {
   return data;
 }
 
-export async function createTemplate(
-  data: Omit<TaskTemplate, "id">,
-): Promise<TaskTemplate> {
+export async function createTemplate(data: {
+  name: string;
+  frequency: TaskFrequency;
+}): Promise<TaskTemplate> {
   const response = await api.post<TaskTemplate>("/templates", data);
   return response.data;
 }
 
 export async function updateTemplate(
   id: string,
-  data: Partial<TaskTemplate>,
+  data: Partial<Pick<TaskTemplate, "name" | "frequency">>,
 ): Promise<TaskTemplate> {
   const response = await api.patch<TaskTemplate>(`/templates/${id}`, data);
   return response.data;
@@ -133,6 +139,11 @@ export async function updateTemplate(
 
 export async function deleteTemplate(id: string): Promise<void> {
   await api.delete(`/templates/${id}`);
+}
+
+export async function getTemplateItems(templateId: string): Promise<TemplateItem[]> {
+  const { data } = await api.get<TemplateItem[]>(`/templates/${templateId}/items`);
+  return data;
 }
 
 // --- Char Templates (quais templates cada char usa) ---
@@ -172,8 +183,11 @@ export async function getTaskInstances(
 export async function updateTaskStatus(
   id: string,
   done: boolean,
+  loot?: TaskLootLine[] | null,
 ): Promise<TaskInstance> {
-  const response = await api.patch<TaskInstance>(`/tasks/${id}/status`, { done });
+  const body: { done: boolean; loot?: TaskLootLine[] | null } = { done };
+  if (loot !== undefined) body.loot = loot;
+  const response = await api.patch<TaskInstance>(`/tasks/${id}/status`, body);
   return response.data;
 }
 
@@ -185,6 +199,82 @@ export async function getDashboardSummary(
     params: { charId },
   });
   return response.data;
+}
+
+// --- Admin ---
+export async function getAdminDashboard(): Promise<AdminDashboardEntry[]> {
+  const { data } = await api.get<AdminDashboardEntry[]>("/admin/dashboard");
+  return data;
+}
+
+// --- Admin: Templates globais ---
+export async function getAdminGlobalTemplates(): Promise<TaskTemplate[]> {
+  const { data } = await api.get<TaskTemplate[]>("/admin/global-templates");
+  return data;
+}
+
+export async function createAdminGlobalTemplate(body: {
+  name: string;
+  frequency: TaskFrequency;
+  kind: "standard" | "loot";
+  presetKey?: string | null;
+}): Promise<TaskTemplate> {
+  const { data } = await api.post<TaskTemplate>("/admin/global-templates", body);
+  return data;
+}
+
+export async function updateAdminGlobalTemplate(
+  id: string,
+  body: {
+    name: string;
+    frequency: TaskFrequency;
+    kind: "standard" | "loot";
+    presetKey?: string | null;
+  },
+): Promise<TaskTemplate> {
+  const { data } = await api.patch<TaskTemplate>(`/admin/global-templates/${id}`, body);
+  return data;
+}
+
+export async function deleteAdminGlobalTemplate(id: string): Promise<{ success: true }> {
+  const { data } = await api.delete<{ success: true }>(`/admin/global-templates/${id}`);
+  return data;
+}
+
+export async function getAdminGlobalTemplateItems(templateId: string): Promise<TemplateItem[]> {
+  const { data } = await api.get<TemplateItem[]>(`/admin/global-templates/${templateId}/items`);
+  return data;
+}
+
+export async function replaceAdminGlobalTemplateItems(
+  templateId: string,
+  items: Array<{
+    itemSlug: string;
+    itemName: string;
+    spritePath: string;
+    isRare?: boolean;
+    npcPriceDollars?: number | null;
+  }>,
+): Promise<TemplateItem[]> {
+  const { data } = await api.post<TemplateItem[]>(
+    `/admin/global-templates/${templateId}/items`,
+    { items },
+  );
+  return data;
+}
+
+export async function adminListItems(params: {
+  q?: string;
+  hasRealSprite?: boolean;
+  usedPlaceholder?: boolean;
+}): Promise<GameItem[]> {
+  const { data } = await api.get<GameItem[]>("/admin/items", { params });
+  return data;
+}
+
+export async function adminListSprites(params: { q?: string }): Promise<string[]> {
+  const { data } = await api.get<string[]>("/admin/sprites", { params });
+  return data;
 }
 
 // --- Histórico de períodos ---

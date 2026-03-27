@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import { Settings2, Plus, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -73,6 +74,15 @@ export default function TemplatesPage() {
     () => (charTemplates?.map((ct) => ct.templateId) ?? []).sort(),
     [charTemplates],
   );
+  const sortedTemplates = useMemo(() => {
+    if (!templates?.length) return [];
+    return [...templates].sort((a, b) => {
+      const aIsPredefined = Boolean(a.presetKey) || a.scope === "global";
+      const bIsPredefined = Boolean(b.presetKey) || b.scope === "global";
+      if (aIsPredefined !== bIsPredefined) return aIsPredefined ? 1 : -1;
+      return a.name.localeCompare(b.name, "pt-BR");
+    });
+  }, [templates]);
   const draftEnabledSet = useMemo(
     () => new Set(draftTemplateIds),
     [draftTemplateIds],
@@ -99,7 +109,11 @@ export default function TemplatesPage() {
     );
   };
 
-  const handleDelete = (id: string, name: string) => {
+  const handleDelete = (id: string, name: string, presetKey: string | null) => {
+    if (presetKey) {
+      toast.error("Templates pré-definidos não podem ser excluídos.");
+      return;
+    }
     setTemplateToDelete({ id, name });
   };
 
@@ -290,12 +304,26 @@ export default function TemplatesPage() {
               </tr>
             </thead>
             <tbody>
-              {templates.map((t) => (
+              {sortedTemplates.map((t) => (
                 <tr
                   key={t.id}
                   className="border-b border-border/50 last:border-0 transition-colors hover:bg-primary/[0.03]"
                 >
-                  <td className="px-5 py-3.5 text-sm font-medium">{t.name}</td>
+                  <td className="px-5 py-3.5 text-sm font-medium">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {t.name}
+                      {(t.presetKey || t.scope === "global") && (
+                        <Badge variant="outline" className="text-[10px] font-normal">
+                          Pré-definido
+                        </Badge>
+                      )}
+                      {t.kind === "loot" && (
+                        <Badge variant="secondary" className="text-[10px] font-normal">
+                          Loot
+                        </Badge>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-5 py-3.5">
                     <span
                       className={`inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-medium border ${
@@ -322,8 +350,16 @@ export default function TemplatesPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDelete(t.id, t.name)}
-                      className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      disabled={!!t.presetKey || t.scope === "global"}
+                      title={
+                        t.presetKey
+                          ? "Template do sistema"
+                          : t.scope === "global"
+                            ? "Template global (somente leitura)"
+                            : "Excluir template"
+                      }
+                      onClick={() => handleDelete(t.id, t.name, t.presetKey)}
+                      className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

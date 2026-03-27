@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 import { AuthResponse } from "@/services/api";
 
 interface AuthState {
-  user: { id: string; email: string } | null;
+  user: { id: string; email: string; role: "admin" | "user" } | null;
   accessToken: string | null;
   refreshToken: string | null;
   setSession: (payload: AuthResponse) => void;

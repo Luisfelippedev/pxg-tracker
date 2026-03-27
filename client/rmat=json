@@ -1,0 +1,111 @@
+HTTP/1.1 200 OK
+Date: Wed, 25 Mar 2026 03:52:22 GMT
+Server: Apache/2.4.54 (Debian)
+X-Powered-By: PHP/8.1.15
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+Content-Disposition: inline; filename=api-result.html
+Content-language: pt-BR
+Vary: Accept-Encoding,Accept-Language,Treat-as-Untrusted,Cookie
+Expires: Thu, 01 Jan 1970 00:00:00 GMT
+Cache-Control: private, must-revalidate, max-age=0
+Content-Length: 6599
+X-Request-Id: 3cf4a66845908a1ea5fd38f4
+Content-Type: text/html; charset=UTF-8
+
+<!DOCTYPE html>
+<html class="client-nojs" lang="pt-BR" dir="ltr">
+<head>
+<meta charset="UTF-8"/>
+<title>Resultado da API MediaWiki - PokeXGames</title>
+<script>document.documentElement.className="client-js";RLCONF={"wgBreakFrames":false,"wgSeparatorTransformTable":[",\t."," \t,"],"wgDigitTransformTable":["",""],"wgDefaultDateFormat":"dmy","wgMonthNames":["","janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"],"wgRequestId":"3cf4a66845908a1ea5fd38f4","wgCSPNonce":false,"wgCanonicalNamespace":"Special","wgCanonicalSpecialPageName":"ApiHelp","wgNamespaceNumber":-1,"wgPageName":"Especial:ApiHelp","wgTitle":"ApiHelp","wgCurRevisionId":0,"wgRevisionId":0,"wgArticleId":0,"wgIsArticle":false,"wgIsRedirect":false,"wgAction":"view","wgUserName":null,"wgUserGroups":["*"],"wgCategories":[],"wgPageContentLanguage":"pt-br","wgPageContentModel":"wikitext","wgRelevantPageName":"Especial:ApiHelp","wgRelevantArticleId":0,"wgIsProbablyEditable":false,"wgRelevantPageIsProbablyEditable":false,"wgMFDisplayWikibaseDescriptions":{"search":false,"nearby":false,"watchlist":false,"tagline":false},
+"wgULSAcceptLanguageList":[],"wgULSCurrentAutonym":"português do Brasil"};RLSTATE={"site.styles":"ready","user.styles":"ready","user":"ready","user.options":"loading","mediawiki.apipretty":"ready","mediawiki.skinning.interface":"ready"};RLPAGEMODULES=["site","mediawiki.page.ready","ext.SimpleTooltip"];</script>
+<script>(RLQ=window.RLQ||[]).push(function(){mw.loader.implement("user.options@12s5i",function($,jQuery,require,module){mw.user.tokens.set({"patrolToken":"+\\","watchToken":"+\\","csrfToken":"+\\"});});});</script>
+<link rel="stylesheet" href="/load.php?lang=pt-br&amp;modules=mediawiki.apipretty%7Cmediawiki.skinning.interface&amp;only=styles&amp;skin=apioutput"/>
+<script async="" src="/load.php?lang=pt-br&amp;modules=startup&amp;only=scripts&amp;raw=1&amp;skin=apioutput"></script>
+<meta name="ResourceLoaderDynamicStyles" content=""/>
+<link rel="stylesheet" href="/load.php?lang=pt-br&amp;modules=site.styles&amp;only=styles&amp;skin=apioutput"/>
+<meta name="generator" content="MediaWiki 1.39.1"/>
+<meta name="robots" content="noindex,nofollow"/>
+<meta name="format-detection" content="telephone=no"/>
+<meta name="viewport" content="width=1000"/>
+<link rel="icon" href="/favicon.ico"/>
+<link rel="search" type="application/opensearchdescription+xml" href="/opensearch_desc.php" title="PokeXGames (pt-br)"/>
+<link rel="EditURI" type="application/rsd+xml" href="https://wiki.pokexgames.com/api.php?action=rsd"/>
+<link rel="alternate" type="application/atom+xml" title="Feed Atom da PokeXGames" href="/index.php?title=Especial:Mudan%C3%A7as_recentes&amp;feed=atom"/>
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-21840337-5"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-21840337-5');
+</script>
+</head>
+<body class="mediawiki ltr sitedir-ltr mw-hide-empty-elt ns--1 ns-special mw-special-ApiHelp page-Especial_ApiHelp rootpage-Especial_ApiHelp skin-apioutput action-view"><div class="mw-body" role="main">
+	<h1 id="firstHeading">Resultado da API MediaWiki</h1>
+	<div class="mw-body-content">
+		<div id="mw-content-text" class="mw-body-content"><div class="api-pretty-header"><p>Esta é a representação HTML do formato JSON. O HTML é bom para depuração, mas não é adequado para o uso da aplicação.
+</p><p>Especifique o parâmetro <var>format</var> para alterar o formato de saída. Para ver a representação não-HTML do formato JSON, defina <a rel="nofollow" class="external text" href="https://wiki.pokexgames.com/api.php?action=query&amp;titles=File%3AGiant_Belt.png%7CFile%3AKermes_Shard.png%7CFile%3ATMS-OTDD.gif%7CFile%3ARecipe_T1H.png%7CFile%3AYellow-Star-Piece.gif&amp;format=json"><kbd>format=json</kbd></a>.
+</p><p>Veja a <a href="https://www.mediawiki.org/wiki/API" class="extiw" title="mw:API">documentação completa</a> ou a <a href="/index.php/Especial:ApiHelp/main" title="Especial:ApiHelp/main">ajuda da API</a> para obter mais informações.
+</p></div><pre class="api-pretty-content">{
+    "batchcomplete": "",
+    "query": {
+        "normalized": [
+            {
+                "from": "File:Giant_Belt.png",
+                "to": "Arquivo:Giant Belt.png"
+            },
+            {
+                "from": "File:Kermes_Shard.png",
+                "to": "Arquivo:Kermes Shard.png"
+            },
+            {
+                "from": "File:TMS-OTDD.gif",
+                "to": "Arquivo:TMS-OTDD.gif"
+            },
+            {
+                "from": "File:Recipe_T1H.png",
+                "to": "Arquivo:Recipe T1H.png"
+            },
+            {
+                "from": "File:Yellow-Star-Piece.gif",
+                "to": "Arquivo:Yellow-Star-Piece.gif"
+            }
+        ],
+        "pages": {
+            "26901": {
+                "pageid": 26901,
+                "ns": 6,
+                "title": "Arquivo:Giant Belt.png"
+            },
+            "14904": {
+                "pageid": 14904,
+                "ns": 6,
+                "title": "Arquivo:Kermes Shard.png"
+            },
+            "26749": {
+                "pageid": 26749,
+                "ns": 6,
+                "title": "Arquivo:Recipe T1H.png"
+            },
+            "26755": {
+                "pageid": 26755,
+                "ns": 6,
+                "title": "Arquivo:TMS-OTDD.gif"
+            },
+            "23373": {
+                "pageid": 23373,
+                "ns": 6,
+                "title": "Arquivo:Yellow-Star-Piece.gif"
+            }
+        }
+    }
+}</pre>
+<div class="printfooter" data-nosnippet="">Disponível em “<a dir="ltr" href="https://wiki.pokexgames.com/index.php/Especial:ApiHelp">https://wiki.pokexgames.com/index.php/Especial:ApiHelp</a>”</div></div>
+	</div>
+</div>
+<script>(RLQ=window.RLQ||[]).push(function(){mw.log.warn("This page is using the deprecated ResourceLoader module \"mediawiki.skinning.interface\".\n[1.37] The use of the `content` feature with ResourceLoaderSkinModule is deprecated. Use `content-media` instead. [1.37] The use of the `legacy` feature with ResourceLoaderSkinModule is deprecated(T89981) and is a NOOP since 1.39 (T304325). This should be urgently omited to retain compatibility with future MediaWiki versionsMore information can be found at [[mw:Manual:ResourceLoaderSkinModule]]. ");mw.config.set({"wgBackendResponseTime":8256});});</script>
+</body>
+</html>

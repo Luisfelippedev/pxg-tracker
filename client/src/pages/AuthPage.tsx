@@ -24,7 +24,29 @@ import { Navigate } from "react-router-dom";
 import { AlertCircle } from "lucide-react";
 
 const loginSchema = z.object({
-  email: z.string().min(1, "Email é obrigatório").email("Informe um email válido"),
+  // Para dev/local: aceita emails sem TLD (ex: admin@local).
+  email: z
+    .string()
+    .min(1, "Email é obrigatório")
+    .refine(
+      (val) => {
+        const v = val
+          // Remove espaços invisíveis comuns
+          .replace(/\u00A0/g, " ")
+          .replace(/[\u200B-\u200D\uFEFF]/g, "")
+          // Remove qualquer whitespace
+          .replace(/\s/g, "")
+          .trim();
+
+        if (!v) return false;
+        const parts = v.split("@");
+        // Exige exatamente 1 "@", com esquerda e direita preenchidas.
+        if (parts.length !== 2) return false;
+        const [left, right] = parts;
+        return Boolean(left && right);
+      },
+      { message: "Informe um email válido" },
+    ),
   password: z.string().min(1, "Senha é obrigatória"),
 });
 
@@ -41,6 +63,16 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("login");
+
+  function normalizeEmail(input: string) {
+    // Remove whitespace invisível (ex: NBSP de copy/paste) para dev/local.
+    return input
+      .replace(/\u00A0/g, " ")
+      .replace(/[\u200B-\u200D\uFEFF]/g, "")
+      .replace(/\s/g, "")
+      .trim()
+      .toLowerCase();
+  }
 
   const loginForm = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -60,7 +92,7 @@ export default function AuthPage() {
     setLoading(true);
     setApiError(null);
     try {
-      const data = await login(values.email.trim().toLowerCase(), values.password);
+      const data = await login(normalizeEmail(values.email), values.password);
       setSession(data);
       toast.success("Login realizado com sucesso");
     } catch (err) {
@@ -74,7 +106,7 @@ export default function AuthPage() {
     setLoading(true);
     setApiError(null);
     try {
-      const data = await register(values.email.trim().toLowerCase(), values.password);
+      const data = await register(normalizeEmail(values.email), values.password);
       setSession(data);
       toast.success("Conta criada com sucesso");
     } catch (err) {

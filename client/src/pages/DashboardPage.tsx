@@ -4,7 +4,15 @@ import StatCard from "@/components/StatCard";
 import ProgressBar from "@/components/ProgressBar";
 import CharProgressMiniCard from "@/components/CharProgressMiniCard";
 import { SkeletonCard } from "@/components/Skeletons";
-import { ListChecks, CheckCircle2, TrendingUp, Users } from "lucide-react";
+import {
+  ListChecks,
+  CheckCircle2,
+  TrendingUp,
+  Users,
+  CircleDollarSign,
+} from "lucide-react";
+import { NIGHTMARE_TERROR_PRESET_KEY } from "@/data/nightmareTerrorItems";
+import { formatNpcDollars } from "@/lib/utils";
 import EmptyState from "@/components/EmptyState";
 import NoCharsEmptyState from "@/components/NoCharsEmptyState";
 
@@ -37,6 +45,8 @@ export default function DashboardPage() {
 
   const selectedProgress = data?.charProgress.find((cp) => cp.charId === selectedChar.id);
   const otherCharsProgress = data?.charProgress.filter((cp) => cp.charId !== selectedChar.id) ?? [];
+  const lootNpc = data?.weeklyLootNpcByPreset ?? {};
+  const terrorNpc = lootNpc[NIGHTMARE_TERROR_PRESET_KEY] ?? 0;
 
   return (
     <div className="space-y-8">
@@ -55,7 +65,7 @@ export default function DashboardPage() {
         </div>
       ) : data ? (
         <>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard title="Total de Tarefas" value={data.totalTasks} icon={ListChecks} />
             <StatCard title="Concluídas" value={data.completedTasks} icon={CheckCircle2} />
             <StatCard
@@ -64,6 +74,12 @@ export default function DashboardPage() {
               subtitle="taxa de conclusão"
               icon={TrendingUp}
               accent
+            />
+            <StatCard
+              title="NPC — Nightmare Terrors"
+              value={formatNpcDollars(terrorNpc)}
+              subtitle="semana atual (drops × preço NPC)"
+              icon={CircleDollarSign}
             />
           </div>
 

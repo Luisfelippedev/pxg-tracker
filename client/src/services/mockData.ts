@@ -16,13 +16,15 @@ export const mockChars: Char[] = [
   { id: "char-3", name: "Sorcerer PvP" },
 ];
 
+const std = { kind: "standard" as const, presetKey: null };
+
 export const mockTemplates: TaskTemplate[] = [
-  { id: "tpl-1", name: "Boss Diário", frequency: "weekly" },
-  { id: "tpl-2", name: "Quest de Clã", frequency: "weekly" },
-  { id: "tpl-3", name: "Coleta de Recursos", frequency: "weekly" },
-  { id: "tpl-4", name: "Evento Mensal", frequency: "monthly" },
-  { id: "tpl-5", name: "Ranking PvP", frequency: "monthly" },
-  { id: "tpl-6", name: "Missão de Exploração", frequency: "weekly" },
+  { id: "tpl-1", name: "Boss Diário", frequency: "weekly", ...std },
+  { id: "tpl-2", name: "Quest de Clã", frequency: "weekly", ...std },
+  { id: "tpl-3", name: "Coleta de Recursos", frequency: "weekly", ...std },
+  { id: "tpl-4", name: "Evento Mensal", frequency: "monthly", ...std },
+  { id: "tpl-5", name: "Ranking PvP", frequency: "monthly", ...std },
+  { id: "tpl-6", name: "Missão de Exploração", frequency: "weekly", ...std },
 ];
 
 /** Quais templates cada char usa. Char 1 usa todos; chars 2 e 3 usam subconjuntos */
@@ -69,6 +71,7 @@ function generateInstances(): TaskInstance[] {
           done,
           completedAt: done ? now.subtract(Math.floor(Math.random() * 5), "day").toISOString() : null,
           notes: "",
+          loot: null,
         });
       } else {
         instances.push({
@@ -80,6 +83,7 @@ function generateInstances(): TaskInstance[] {
           done,
           completedAt: done ? now.subtract(Math.floor(Math.random() * 10), "day").toISOString() : null,
           notes: "",
+          loot: null,
         });
       }
     });
