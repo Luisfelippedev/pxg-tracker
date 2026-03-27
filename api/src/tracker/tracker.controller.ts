@@ -15,11 +15,13 @@ import { CurrentUser } from '../common/current-user.decorator';
 import {
   CreateTemplateDto,
   SetCharTemplatesDto,
+  UpdateTaskStatusDto,
   UpdateTemplateDto,
 } from './dto/tracker.dto';
 import { TrackerService } from './tracker.service';
+import { NonAdminGuard } from '../admin/non-admin.guard';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, NonAdminGuard)
 @Controller()
 export class TrackerController {
   constructor(private readonly trackerService: TrackerService) {}
@@ -52,6 +54,14 @@ export class TrackerController {
     @Param('id') id: string,
   ) {
     return this.trackerService.deleteTemplate(user.sub, id);
+  }
+
+  @Get('templates/:id/items')
+  getTemplateItems(
+    @CurrentUser() user: { sub: string },
+    @Param('id') id: string,
+  ) {
+    return this.trackerService.getTemplateItems(user.sub, id);
   }
 
   @Get('chars/:charId/templates')
@@ -91,9 +101,9 @@ export class TrackerController {
   updateTaskStatus(
     @CurrentUser() user: { sub: string },
     @Param('id') id: string,
-    @Body() body: { done: boolean },
+    @Body() body: UpdateTaskStatusDto,
   ) {
-    return this.trackerService.updateTaskStatus(user.sub, id, body.done);
+    return this.trackerService.updateTaskStatus(user.sub, id, body);
   }
 
   @Get('dashboard')

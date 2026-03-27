@@ -9,6 +9,8 @@ import {
 import { Char } from '../chars/char.entity';
 import { TaskTemplate } from '../tracker/entities/task-template.entity';
 
+export type UserRole = 'admin' | 'user';
+
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
@@ -19,6 +21,9 @@ export class User {
 
   @Column()
   passwordHash!: string;
+
+  @Column({ type: 'varchar', default: 'user', nullable: true })
+  role!: UserRole | null;
 
   @Column({ type: 'text', nullable: true })
   refreshTokenHash!: string | null;

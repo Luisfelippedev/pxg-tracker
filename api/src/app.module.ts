@@ -5,14 +5,17 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { CharsModule } from './chars/chars.module';
+import { AdminModule } from './admin/admin.module';
 import { TrackerModule } from './tracker/tracker.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
+import { SeedModule } from './seed/seed.module';
 import { User } from './users/user.entity';
 import { Char } from './chars/char.entity';
 import { TaskTemplate } from './tracker/entities/task-template.entity';
 import { CharTemplate } from './tracker/entities/char-template.entity';
 import { TaskInstance } from './tracker/entities/task-instance.entity';
 import { PeriodSnapshot } from './tracker/entities/period-snapshot.entity';
+import { TemplateItem } from './tracker/entities/template-item.entity';
 
 @Module({
   imports: [
@@ -31,6 +34,7 @@ import { PeriodSnapshot } from './tracker/entities/period-snapshot.entity';
         CharTemplate,
         TaskInstance,
         PeriodSnapshot,
+        TemplateItem,
       ],
       synchronize: true,
     }),
@@ -38,6 +42,8 @@ import { PeriodSnapshot } from './tracker/entities/period-snapshot.entity';
     CharsModule,
     TrackerModule,
     SchedulerModule,
+    AdminModule,
+    SeedModule,
   ],
   controllers: [AppController],
   providers: [AppService],

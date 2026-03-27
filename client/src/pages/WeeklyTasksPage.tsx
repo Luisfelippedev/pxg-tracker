@@ -15,6 +15,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { CalendarDays } from "lucide-react";
@@ -205,6 +215,7 @@ export default function WeeklyTasksPage() {
   const [lootDialogTask, setLootDialogTask] = useState<TaskInstanceEnriched | null>(
     null,
   );
+  const [confirmLootClose, setConfirmLootClose] = useState(false);
   const [quantities, setQuantities] = useState<Record<string, number>>(emptyQty);
   /** Preços NPC vindos do registo guardado (slugs antigos / fora do catálogo). */
   const [lootNpcOverrides, setLootNpcOverrides] = useState<Record<string, number>>(
@@ -329,8 +340,34 @@ export default function WeeklyTasksPage() {
 
   return (
     <div className="space-y-6">
-      <Dialog open={!!lootDialogTask} onOpenChange={(o) => !o && closeLootDialog()}>
-        <DialogContent className="bg-card border-border max-h-[92vh] flex flex-col gap-0 p-6 sm:max-w-lg">
+      <AlertDialog open={confirmLootClose} onOpenChange={setConfirmLootClose}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display">Fechar sem registrar?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Os drops preenchidos serão perdidos e a tarefa não será marcada como concluída.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Continuar preenchendo</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmLootClose(false);
+                closeLootDialog();
+              }}
+            >
+              Fechar mesmo assim
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={!!lootDialogTask} onOpenChange={(o) => { if (!o) setConfirmLootClose(true); }}>
+        <DialogContent
+          className="bg-card border-border max-h-[92vh] flex flex-col gap-0 p-6 sm:max-w-lg"
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => { e.preventDefault(); setConfirmLootClose(true); }}
+        >
           <DialogHeader className="space-y-1 shrink-0">
             <DialogTitle className="font-display text-lg">
               Drops — Nightmare World Terrors
@@ -360,7 +397,7 @@ export default function WeeklyTasksPage() {
             <Button
               type="button"
               variant="outline"
-              onClick={closeLootDialog}
+              onClick={() => setConfirmLootClose(true)}
               className={cn(
                 "h-10 min-h-10 w-full px-6 font-medium sm:w-auto",
                 "border-2 border-border bg-card shadow-sm",

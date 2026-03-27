@@ -9,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
 import { User } from '../users/user.entity';
+import { UserRole } from '../users/user.entity';
 
 @Injectable()
 export class AuthService {
@@ -25,12 +26,15 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await this.userRepository.save(
-      this.userRepository.create({ email, passwordHash }),
+      this.userRepository.create({ email, passwordHash, role: 'user' }),
     );
 
-    const tokens = await this.issueTokens(user.id, user.email);
+    const tokens = await this.issueTokens(user.id, user.email, user.role ?? 'user');
     await this.updateRefreshToken(user.id, tokens.refreshToken);
-    return { user: { id: user.id, email: user.email }, ...tokens };
+    return {
+      user: { id: user.id, email: user.email, role: user.role ?? 'user' },
+      ...tokens,
+    };
   }
 
   async login(email: string, password: string) {
@@ -40,13 +44,16 @@ export class AuthService {
     const isValid = await bcrypt.compare(password, user.passwordHash);
     if (!isValid) throw new UnauthorizedException('Credenciais inválidas');
 
-    const tokens = await this.issueTokens(user.id, user.email);
+    const tokens = await this.issueTokens(user.id, user.email, user.role ?? 'user');
     await this.updateRefreshToken(user.id, tokens.refreshToken);
-    return { user: { id: user.id, email: user.email }, ...tokens };
+    return {
+      user: { id: user.id, email: user.email, role: user.role ?? 'user' },
+      ...tokens,
+    };
   }
 
   async refresh(refreshToken: string) {
-    let payload: { sub: string; email: string };
+    let payload: { sub: string; email: string; role?: UserRole };
     try {
       payload = await this.jwtService.verifyAsync(refreshToken, {
         secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
@@ -64,15 +71,18 @@ export class AuthService {
     const isValid = await bcrypt.compare(refreshToken, user.refreshTokenHash);
     if (!isValid) throw new UnauthorizedException('Refresh token inválido');
 
-    const tokens = await this.issueTokens(user.id, user.email);
+    const tokens = await this.issueTokens(user.id, user.email, user.role ?? 'user');
     await this.updateRefreshToken(user.id, tokens.refreshToken);
-    return { user: { id: user.id, email: user.email }, ...tokens };
+    return {
+      user: { id: user.id, email: user.email, role: user.role ?? 'user' },
+      ...tokens,
+    };
   }
 
   async me(userId: string) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) throw new UnauthorizedException('Usuário não encontrado');
-    return { id: user.id, email: user.email };
+    return { id: user.id, email: user.email, role: user.role ?? 'user' };
   }
 
   async logout(userId: string) {
@@ -83,9 +93,9 @@ export class AuthService {
     return { success: true };
   }
 
-  private async issueTokens(userId: string, email: string) {
+  private async issueTokens(userId: string, email: string, role: UserRole) {
     const accessToken = await this.jwtService.signAsync(
-      { sub: userId, email },
+      { sub: userId, email, role },
       {
         secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
         expiresIn: '15m',
@@ -93,7 +103,7 @@ export class AuthService {
     );
 
     const refreshToken = await this.jwtService.signAsync(
-      { sub: userId, email },
+      { sub: userId, email, role },
       { secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET') },
     );
 

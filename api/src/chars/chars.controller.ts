@@ -12,8 +12,9 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../common/current-user.decorator';
 import { CharsService } from './chars.service';
 import { CreateCharDto, UpdateCharDto } from './dto/chars.dto';
+import { NonAdminGuard } from '../admin/non-admin.guard';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, NonAdminGuard)
 @Controller('chars')
 export class CharsController {
   constructor(private readonly charsService: CharsService) {}

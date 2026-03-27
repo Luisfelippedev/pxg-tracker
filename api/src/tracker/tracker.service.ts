@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
@@ -6,16 +10,24 @@ import { In, Repository } from 'typeorm';
 import { Char } from '../chars/char.entity';
 import { CharTemplate } from './entities/char-template.entity';
 import { PeriodSnapshot } from './entities/period-snapshot.entity';
+import { TaskLootLine } from './entities/task-loot.types';
 import { TaskInstance } from './entities/task-instance.entity';
 import { TaskTemplate } from './entities/task-template.entity';
+import { TemplateItem } from './entities/template-item.entity';
+import { UpdateTaskStatusDto } from './dto/tracker.dto';
 
 dayjs.extend(isoWeek);
+
+/** Preset espelhado pelo client (nightmareTerrorItems.ts) */
+export const NIGHTMARE_TERROR_PRESET_KEY = 'nightmare_terror';
 
 @Injectable()
 export class TrackerService {
   constructor(
     @InjectRepository(TaskTemplate)
     private readonly templateRepository: Repository<TaskTemplate>,
+    @InjectRepository(TemplateItem)
+    private readonly templateItemRepository: Repository<TemplateItem>,
     @InjectRepository(CharTemplate)
     private readonly charTemplateRepository: Repository<CharTemplate>,
     @InjectRepository(TaskInstance)
@@ -26,11 +38,25 @@ export class TrackerService {
     private readonly periodSnapshotRepository: Repository<PeriodSnapshot>,
   ) {}
 
-  getTemplates(userId: string) {
-    return this.templateRepository.find({
-      where: { userId },
+  async getTemplates(userId: string) {
+    // Global + templates do usuário
+    const rows = await this.templateRepository.find({
+      where: [{ scope: 'global' }, { userId, scope: 'user' }],
       order: { createdAt: 'ASC' },
     });
+    // Segurança extra contra legado duplicado por presetKey:
+    // se existir global com mesmo preset, não expõe a versão user.
+    const globalPresetKeys = new Set(
+      rows.filter((t) => t.scope === 'global' && t.presetKey).map((t) => t.presetKey),
+    );
+    return rows.filter(
+      (t) =>
+        !(
+          t.scope === 'user' &&
+          t.presetKey &&
+          globalPresetKeys.has(t.presetKey)
+        ),
+    );
   }
 
   createTemplate(
@@ -42,6 +68,9 @@ export class TrackerService {
         userId,
         name: data.name.trim(),
         frequency: data.frequency,
+        kind: 'standard',
+        presetKey: null,
+        scope: 'user',
       }),
     );
   }
@@ -55,6 +84,8 @@ export class TrackerService {
       where: { id, userId },
     });
     if (!template) throw new NotFoundException('Template não encontrado');
+    if (template.scope === 'global')
+      throw new BadRequestException('Templates globais são somente leitura para usuários comuns');
 
     if (data.name) template.name = data.name.trim();
     if (data.frequency) template.frequency = data.frequency;
@@ -62,9 +93,17 @@ export class TrackerService {
   }
 
   async deleteTemplate(userId: string, id: string) {
-    const result = await this.templateRepository.delete({ id, userId });
-    if (!result.affected)
-      throw new NotFoundException('Template não encontrado');
+    const template = await this.templateRepository.findOne({
+      where: { id, userId },
+    });
+    if (!template) throw new NotFoundException('Template não encontrado');
+    if (template.scope === 'global')
+      throw new BadRequestException('Templates globais são somente leitura para usuários comuns');
+    if (template.presetKey)
+      throw new BadRequestException(
+        'Templates pré-definidos não podem ser excluídos. Desative no char se não quiser usar.',
+      );
+    await this.templateRepository.remove(template);
     return { success: true };
   }
 
@@ -82,7 +121,10 @@ export class TrackerService {
 
     const templates = templateIds.length
       ? await this.templateRepository.find({
-          where: { id: In(templateIds), userId },
+          where: [
+            { id: In(templateIds), userId, scope: 'user' },
+            { id: In(templateIds), scope: 'global' },
+          ],
         })
       : [];
 
@@ -94,6 +136,20 @@ export class TrackerService {
       await this.charTemplateRepository.save(entities);
     }
     return this.charTemplateRepository.find({ where: { charId } });
+  }
+
+  async getTemplateItems(userId: string, templateId: string) {
+    const template = await this.templateRepository.findOne({
+      where: { id: templateId },
+    });
+    if (!template) throw new NotFoundException('Template não encontrado');
+    if (template.scope !== 'global' && template.userId !== userId) {
+      throw new NotFoundException('Template não encontrado');
+    }
+    return this.templateItemRepository.find({
+      where: { templateId: template.id },
+      order: { itemName: 'ASC' },
+    });
   }
 
   async getTaskInstances(
@@ -139,23 +195,56 @@ export class TrackerService {
         done: item.done,
         completedAt: item.completedAt,
         notes: item.notes,
+        loot: item.loot,
         charName: item.char.name,
         templateName: item.template.name,
         frequency: item.template.frequency,
+        templateKind: item.template.kind,
+        presetKey: item.template.presetKey,
       }));
   }
 
-  async updateTaskStatus(userId: string, id: string, done: boolean) {
+  async updateTaskStatus(userId: string, id: string, body: UpdateTaskStatusDto) {
     const task = await this.taskInstanceRepository.findOne({
       where: { id },
-      relations: ['char'],
+      relations: ['char', 'template'],
     });
     if (!task || task.char.userId !== userId)
       throw new NotFoundException('Tarefa não encontrada');
 
-    task.done = done;
-    task.completedAt = done ? new Date() : null;
+    const { done, loot } = body;
+
+    if (!done) {
+      task.done = false;
+      task.completedAt = null;
+      task.loot = null;
+      return this.taskInstanceRepository.save(task);
+    }
+
+    if (task.template.kind === 'loot') {
+      if (loot === undefined)
+        throw new BadRequestException(
+          'Informe a lista de drops (loot) ao concluir esta tarefa. Pode ser vazia se não dropou nada.',
+        );
+      task.loot = this.normalizeLoot(loot);
+    } else {
+      task.loot = null;
+    }
+
+    task.done = true;
+    task.completedAt = new Date();
     return this.taskInstanceRepository.save(task);
+  }
+
+  private normalizeLoot(loot: TaskLootLine[] | null | undefined): TaskLootLine[] {
+    if (!loot?.length) return [];
+    return loot
+      .filter((l) => l.quantity > 0)
+      .map((l) => ({
+        slug: l.slug,
+        quantity: l.quantity,
+        npcUnitPriceDollars: l.npcUnitPriceDollars,
+      }));
   }
 
   async getDashboardSummary(userId: string, charId?: string) {
@@ -187,13 +276,73 @@ export class TrackerService {
       0,
     );
 
+    let weeklyLootNpcByPreset: Record<string, number> = {};
+    if (charId) {
+      const rows = await this.getCurrentWeeklyLootRows(userId, charId);
+      weeklyLootNpcByPreset = this.sumLootByPreset(rows);
+    }
+
     return {
       totalTasks,
       completedTasks,
       completionPercentage:
         totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
       charProgress,
+      weeklyLootNpcByPreset,
     };
+  }
+
+  private sumLootByPreset(
+    rows: Array<{
+      done: boolean;
+      loot: TaskLootLine[] | null;
+      presetKey: string | null;
+    }>,
+  ): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (const row of rows) {
+      if (!row.done || !row.loot?.length || !row.presetKey) continue;
+      let sum = 0;
+      for (const line of row.loot) {
+        sum += line.quantity * line.npcUnitPriceDollars;
+      }
+      if (sum <= 0) continue;
+      out[row.presetKey] = (out[row.presetKey] ?? 0) + sum;
+    }
+    return out;
+  }
+
+  private async getCurrentWeeklyLootRows(userId: string, charId: string) {
+    await this.ensureOwnedChar(userId, charId);
+    await this.ensureCurrentInstances(charId, userId);
+    const now = dayjs();
+    const weekYear = now.isoWeekYear();
+    const week = now.isoWeek();
+
+    const links = await this.charTemplateRepository.find({
+      where: { charId },
+      relations: ['template'],
+    });
+    const templateIds = links.map((l) => l.templateId);
+    if (templateIds.length === 0) return [];
+
+    const instances = await this.taskInstanceRepository.find({
+      where: {
+        charId,
+        templateId: In(templateIds),
+        year: weekYear,
+        period: week,
+      },
+      relations: ['template'],
+    });
+
+    return instances
+      .filter((i) => i.template.frequency === 'weekly')
+      .map((i) => ({
+        done: i.done,
+        loot: i.loot,
+        presetKey: i.template.presetKey,
+      }));
   }
 
   async getHistory(
@@ -230,7 +379,7 @@ export class TrackerService {
     });
 
     for (const link of links) {
-      if (link.template.userId !== userId) continue;
+      if (link.template.scope !== 'global' && link.template.userId !== userId) continue;
 
       const periodData =
         link.template.frequency === 'weekly'
@@ -329,7 +478,7 @@ export class TrackerService {
           period: currWeek,
           templateId: In(ids),
         },
-        { done: false, completedAt: null },
+        { done: false, completedAt: null, loot: null },
       );
     }
   }
@@ -394,7 +543,7 @@ export class TrackerService {
           period: currMonth,
           templateId: In(ids),
         },
-        { done: false, completedAt: null },
+        { done: false, completedAt: null, loot: null },
       );
     }
   }

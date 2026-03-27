@@ -7,6 +7,7 @@ import {
   Unique,
 } from 'typeorm';
 import { Char } from '../../chars/char.entity';
+import { TaskLootLine } from './task-loot.types';
 import { TaskTemplate } from './task-template.entity';
 
 @Entity('task_instances')
@@ -35,6 +36,10 @@ export class TaskInstance {
 
   @Column({ default: '' })
   notes!: string;
+
+  /** Drops informados ao concluir template tipo loot (quantidade + preço unitário NPC no momento) */
+  @Column({ type: 'jsonb', nullable: true })
+  loot!: TaskLootLine[] | null;
 
   @ManyToOne(() => Char, (char) => char.tasks, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'charId' })

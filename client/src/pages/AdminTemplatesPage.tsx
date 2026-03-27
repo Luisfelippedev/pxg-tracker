@@ -27,6 +27,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import {
   Popover,
@@ -191,7 +201,9 @@ export default function AdminTemplatesPage() {
   const deleteTpl = useDeleteAdminGlobalTemplate();
 
   const [editingTpl, setEditingTpl] = useState<TaskTemplate | null>(null);
+  const [confirmEditClose, setConfirmEditClose] = useState(false);
   const [itemsTplId, setItemsTplId] = useState<string | null>(null);
+  const [confirmItemsClose, setConfirmItemsClose] = useState(false);
 
   const itemsQuery = useAdminGlobalTemplateItems(itemsTplId);
   const replaceItems = useReplaceAdminGlobalTemplateItems();
@@ -542,7 +554,7 @@ export default function AdminTemplatesPage() {
                       </Button>
                       <Dialog
                         open={editingTpl?.id === t.id}
-                        onOpenChange={(o) => !o && setEditingTpl(null)}
+                        onOpenChange={(o) => { if (!o) setConfirmEditClose(true); else setEditingTpl(t); }}
                       >
                         <DialogTrigger asChild>
                           <Button
@@ -555,7 +567,11 @@ export default function AdminTemplatesPage() {
                             <Pencil className="h-4 w-4" />
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="bg-card border-border">
+                        <DialogContent
+                          className="bg-card border-border"
+                          onInteractOutside={(e) => e.preventDefault()}
+                          onEscapeKeyDown={(e) => { e.preventDefault(); setConfirmEditClose(true); }}
+                        >
                           <DialogHeader>
                             <DialogTitle className="font-display text-xl">
                               Editar template
@@ -620,17 +636,63 @@ export default function AdminTemplatesPage() {
         </div>
       )}
 
+      <AlertDialog open={confirmEditClose} onOpenChange={setConfirmEditClose}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display">Fechar sem salvar?</AlertDialogTitle>
+            <AlertDialogDescription>
+              As alterações no template serão perdidas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Continuar editando</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmEditClose(false);
+                setEditingTpl(null);
+              }}
+            >
+              Fechar mesmo assim
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmItemsClose} onOpenChange={setConfirmItemsClose}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display">Fechar sem salvar?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Os itens do template não foram salvos e as alterações serão perdidas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Continuar editando</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmItemsClose(false);
+                setItemsDialogOpen(false);
+                setItemsTplId(null);
+                setItemDraft([]);
+              }}
+            >
+              Fechar mesmo assim
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Dialog
         open={itemsDialogOpen}
         onOpenChange={(o) => {
-          if (!o) {
-            setItemsDialogOpen(false);
-            setItemsTplId(null);
-            setItemDraft([]);
-          }
+          if (!o) setConfirmItemsClose(true);
         }}
       >
-        <DialogContent className="bg-card border-border max-h-[92vh] flex flex-col gap-0 p-6 sm:max-w-3xl">
+        <DialogContent
+          className="bg-card border-border max-h-[92vh] flex flex-col gap-0 p-6 sm:max-w-3xl"
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => { e.preventDefault(); setConfirmItemsClose(true); }}
+        >
           <DialogHeader className="space-y-1 shrink-0">
             <DialogTitle className="font-display text-lg">
               Itens do template

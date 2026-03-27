@@ -55,6 +55,7 @@ const freqLabel = (f: TaskFrequency) => (f === "weekly" ? "Semanal" : "Mensal");
 
 export default function TemplatesPage() {
   const [open, setOpen] = useState(false);
+  const [confirmTemplateClose, setConfirmTemplateClose] = useState(false);
   const [templateToDelete, setTemplateToDelete] = useState<{ id: string; name: string } | null>(null);
   const [draftTemplateIds, setDraftTemplateIds] = useState<string[]>([]);
   const { selectedChar } = useChar();
@@ -219,14 +220,50 @@ export default function TemplatesPage() {
             Salvar
           </Button>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <AlertDialog open={confirmTemplateClose} onOpenChange={setConfirmTemplateClose}>
+          <AlertDialogContent className="bg-card border-border">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="font-display">Fechar sem salvar?</AlertDialogTitle>
+              <AlertDialogDescription>
+                As informações preenchidas serão perdidas.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Continuar editando</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  setConfirmTemplateClose(false);
+                  setOpen(false);
+                  form.reset();
+                }}
+              >
+                Fechar mesmo assim
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <Dialog
+          open={open}
+          onOpenChange={(o) => {
+            if (!o) {
+              setConfirmTemplateClose(true);
+            } else {
+              setOpen(true);
+            }
+          }}
+        >
           <DialogTrigger asChild>
             <Button className="gradient-primary text-primary-foreground font-semibold shadow-primary hover:opacity-90 transition-opacity">
               <Plus className="h-4 w-4 mr-1.5" />
               Novo Template
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-card border-border">
+          <DialogContent
+            className="bg-card border-border"
+            onInteractOutside={(e) => e.preventDefault()}
+            onEscapeKeyDown={(e) => { e.preventDefault(); setConfirmTemplateClose(true); }}
+          >
             <DialogHeader>
               <DialogTitle className="font-display text-xl">
                 Criar Template

@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: pxg_tracker
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
 
@@ -26,8 +26,13 @@ services:
       JWT_ACCESS_SECRET: access-secret-change-me
       JWT_REFRESH_SECRET: refresh-secret-change-me
       JWT_ACCESS_EXPIRES_IN: 15m
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
     ports:
-      - "3000:3000"
+      - '3000:3000'
+    volumes:
+      - ./data:/data:ro
+      - ../client/public/items:/public-items:ro
     depends_on:
       - postgres
 
