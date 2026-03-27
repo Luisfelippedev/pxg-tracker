@@ -114,6 +114,19 @@ export class TrackerController {
     return this.trackerService.getDashboardSummary(user.sub, charId);
   }
 
+  @Get('drops')
+  getDropsSummary(
+    @CurrentUser() user: { sub: string },
+    @Query('charId') charId: string,
+    @Query('frequency') frequency?: 'weekly' | 'monthly',
+  ) {
+    return this.trackerService.getDropsSummary(
+      user.sub,
+      charId,
+      frequency ?? 'weekly',
+    );
+  }
+
   @Get('history')
   getHistory(
     @CurrentUser() user: { sub: string },

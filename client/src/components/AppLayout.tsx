@@ -10,6 +10,7 @@ import {
   User,
   UserPlus,
   ChevronRight,
+  Gem,
 } from "lucide-react";
 import { authStore } from "@/stores/authStore";
 import { useChar } from "@/contexts/CharContext";
@@ -29,6 +30,7 @@ const userNavItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/weekly", icon: CalendarDays, label: "Semanais" },
   { to: "/monthly", icon: CalendarRange, label: "Mensais" },
+  { to: "/drops", icon: Gem, label: "Drops" },
   { to: "/templates", icon: Settings2, label: "Templates" },
   { to: "/history", icon: History, label: "Histórico" },
   { to: "/chars", icon: Users, label: "Chars" },

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as api from "@/services/api";
 import {
   DashboardSummary,
+  DropsSummary,
   TaskFrequency,
   TaskInstanceEnriched,
   TaskLootLine,
@@ -182,6 +183,7 @@ export function useUpdateTaskStatus() {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks"], refetchType: "inactive" });
       queryClient.invalidateQueries({ queryKey: ["dashboard"], refetchType: "inactive" });
+      queryClient.invalidateQueries({ queryKey: ["drops"], refetchType: "inactive" });
     },
   });
 }
@@ -212,6 +214,18 @@ export function useDeleteTemplate() {
       queryClient.invalidateQueries({ queryKey: ["char-templates"] });
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
     },
+  });
+}
+
+export function useDropsSummary(
+  charId: string | null,
+  frequency: "weekly" | "monthly",
+) {
+  return useQuery<DropsSummary>({
+    queryKey: ["drops", charId, frequency],
+    queryFn: () => api.getDropsSummary({ charId: charId!, frequency }),
+    enabled: !!charId,
+    staleTime: 30_000,
   });
 }
 

@@ -11,6 +11,10 @@ import { Char } from '../chars/char.entity';
 import { CharTemplate } from './entities/char-template.entity';
 import { PeriodSnapshot } from './entities/period-snapshot.entity';
 import { TaskLootLine } from './entities/task-loot.types';
+import {
+  LootSnapshotData,
+  LootSnapshotItem,
+} from './entities/loot-snapshot.types';
 import { TaskInstance } from './entities/task-instance.entity';
 import { TaskTemplate } from './entities/task-template.entity';
 import { TemplateItem } from './entities/template-item.entity';
@@ -410,6 +414,225 @@ export class TrackerService {
       }
     }
   }
+
+  // ---------------------------------------------------------------------------
+  // Drops Summary
+  // ---------------------------------------------------------------------------
+
+  async getDropsSummary(
+    userId: string,
+    charId: string,
+    frequency: 'weekly' | 'monthly',
+  ) {
+    await this.ensureOwnedChar(userId, charId);
+
+    const now = dayjs();
+    const currentYear =
+      frequency === 'weekly' ? now.isoWeekYear() : now.year();
+    const currentPeriod =
+      frequency === 'weekly' ? now.isoWeek() : now.month() + 1;
+
+    // Todas as instâncias do char com loot concluído para esta frequência
+    const allInstances = await this.taskInstanceRepository.find({
+      where: { charId },
+      relations: ['template'],
+    });
+
+    const lootInstances = allInstances.filter(
+      (i) =>
+        i.template.frequency === frequency &&
+        i.done &&
+        (i.loot?.length ?? 0) > 0,
+    );
+
+    // Separa período atual do histórico
+    const currentInstances = lootInstances.filter(
+      (i) => i.year === currentYear && i.period === currentPeriod,
+    );
+    const histInstances = lootInstances.filter(
+      (i) => !(i.year === currentYear && i.period === currentPeriod),
+    );
+
+    // Carrega metadata dos itens (TemplateItem) para todos os templates
+    const allTemplateIds = [...new Set(lootInstances.map((i) => i.templateId))];
+    const templateItems =
+      allTemplateIds.length > 0
+        ? await this.templateItemRepository.find({
+            where: { templateId: In(allTemplateIds) },
+          })
+        : [];
+
+    // Período atual
+    const currentLoot = this.buildLootSnapshot(currentInstances, templateItems);
+
+    // Histórico: agrupa instâncias por (year, period)
+    const periodMap = new Map<string, typeof histInstances>();
+    for (const inst of histInstances) {
+      const key = `${inst.year}:${inst.period}`;
+      const list = periodMap.get(key) ?? [];
+      list.push(inst);
+      periodMap.set(key, list);
+    }
+
+    // Snapshots para pegar totalTasks / completedTasks
+    const snapshots = await this.periodSnapshotRepository.find({
+      where: { charId, frequency },
+    });
+    const snapshotMap = new Map<string, PeriodSnapshot>();
+    for (const s of snapshots) {
+      snapshotMap.set(`${s.year}:${s.period}`, s);
+    }
+
+    // Ordena períodos: mais recente primeiro
+    const historyKeys = [...periodMap.keys()].sort((a, b) => {
+      const [ay, ap] = a.split(':').map(Number);
+      const [by, bp] = b.split(':').map(Number);
+      return ay !== by ? by - ay : bp - ap;
+    });
+
+    const history = historyKeys.map((key) => {
+      const [year, period] = key.split(':').map(Number);
+      const instances = periodMap.get(key)!;
+      const snap = snapshotMap.get(key);
+      const lootData = this.buildLootSnapshot(instances, templateItems);
+      const rareItemCount = lootData.items
+        .filter((i) => i.isRare)
+        .reduce((s, i) => s + i.quantity, 0);
+
+      return {
+        year,
+        period,
+        label: this.formatPeriodLabel(frequency, year, period),
+        npcTotal: lootData.npcTotal,
+        rareItemCount,
+        completedTasks: snap?.completedTasks ?? instances.length,
+        totalTasks: snap?.totalTasks ?? instances.length,
+        items: lootData.items,
+      };
+    });
+
+    // Estatísticas gerais
+    const allNpcValues = [currentLoot.npcTotal, ...history.map((h) => h.npcTotal)];
+    const allTimeNpc = allNpcValues.reduce((s, n) => s + n, 0);
+    const bestPeriodNpc = allNpcValues.length > 0 ? Math.max(...allNpcValues) : 0;
+
+    let bestPeriodLabel = this.formatPeriodLabel(frequency, currentYear, currentPeriod);
+    if (bestPeriodNpc !== currentLoot.npcTotal || bestPeriodNpc === 0) {
+      const best = history.find((h) => h.npcTotal === bestPeriodNpc);
+      if (best) bestPeriodLabel = best.label;
+    }
+
+    const totalRareItemsCollected = [
+      ...currentLoot.items.filter((i) => i.isRare),
+      ...history.flatMap((h) => h.items.filter((i) => i.isRare)),
+    ].reduce((s, i) => s + i.quantity, 0);
+
+    const periodsWithHistNpc = history.filter((h) => h.npcTotal > 0);
+    const avgNpc =
+      periodsWithHistNpc.length > 0
+        ? Math.round(
+            periodsWithHistNpc.reduce((s, h) => s + h.npcTotal, 0) /
+              periodsWithHistNpc.length,
+          )
+        : 0;
+
+    let streak = 0;
+    if (currentLoot.npcTotal > 0) streak++;
+    for (const h of history) {
+      if (h.npcTotal > 0) streak++;
+      else break;
+    }
+
+    const periodsWithDrops =
+      (currentLoot.npcTotal > 0 ? 1 : 0) +
+      history.filter((h) => h.npcTotal > 0).length;
+
+    return {
+      frequency,
+      current: {
+        year: currentYear,
+        period: currentPeriod,
+        label: this.formatPeriodLabel(frequency, currentYear, currentPeriod),
+        npcTotal: currentLoot.npcTotal,
+        items: currentLoot.items.filter((i) => !i.isRare),
+        rareItems: currentLoot.items.filter((i) => i.isRare),
+        completedLootTasks: currentInstances.length,
+      },
+      history,
+      allTime: {
+        npcTotal: allTimeNpc,
+        rareItemsCollected: totalRareItemsCollected,
+        periodsWithDrops,
+        bestPeriodNpc,
+        bestPeriodLabel,
+        avgNpc,
+        streak,
+      },
+    };
+  }
+
+  private buildLootSnapshot(
+    lootInstances: TaskInstance[],
+    templateItems: TemplateItem[],
+  ): LootSnapshotData {
+    const metaByTemplateAndSlug = new Map<string, TemplateItem>();
+    const metaBySlug = new Map<string, TemplateItem>();
+    for (const item of templateItems) {
+      metaByTemplateAndSlug.set(`${item.templateId}:${item.itemSlug}`, item);
+      if (!metaBySlug.has(item.itemSlug)) metaBySlug.set(item.itemSlug, item);
+    }
+
+    const agg = new Map<string, LootSnapshotItem>();
+
+    for (const instance of lootInstances) {
+      for (const line of instance.loot ?? []) {
+        if (line.quantity <= 0) continue;
+        const meta =
+          metaByTemplateAndSlug.get(`${instance.templateId}:${line.slug}`) ??
+          metaBySlug.get(line.slug);
+
+        const isRare = meta ? meta.isRare : line.npcUnitPriceDollars === 0;
+        const npcUnitPrice = isRare ? 0 : line.npcUnitPriceDollars;
+        const npcTotal = isRare ? 0 : line.quantity * npcUnitPrice;
+
+        const existing = agg.get(line.slug);
+        if (existing) {
+          existing.quantity += line.quantity;
+          existing.npcTotal += npcTotal;
+        } else {
+          agg.set(line.slug, {
+            slug: line.slug,
+            name: meta?.itemName ?? line.slug,
+            spritePath: meta?.spritePath ?? '',
+            quantity: line.quantity,
+            npcUnitPrice,
+            npcTotal,
+            isRare,
+            templateName: instance.template?.name ?? '',
+          });
+        }
+      }
+    }
+
+    const items = [...agg.values()];
+    const npcTotal = items.reduce((s, i) => s + i.npcTotal, 0);
+    return { npcTotal, items };
+  }
+
+  private formatPeriodLabel(
+    frequency: 'weekly' | 'monthly',
+    year: number,
+    period: number,
+  ): string {
+    if (frequency === 'weekly') return `S${period}/${year}`;
+    const months = [
+      'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
+      'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez',
+    ];
+    return `${months[period - 1]}/${year}`;
+  }
+
+  // ---------------------------------------------------------------------------
 
   private async ensureOwnedChar(userId: string, charId: string) {
     const char = await this.charRepository.findOne({

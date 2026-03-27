@@ -5,6 +5,7 @@ import {
   CharTemplate,
   DashboardSummary,
   AdminDashboardEntry,
+  DropsSummary,
   PeriodSnapshot,
   TaskFrequency,
   TaskInstance,
@@ -274,6 +275,15 @@ export async function adminListItems(params: {
 
 export async function adminListSprites(params: { q?: string }): Promise<string[]> {
   const { data } = await api.get<string[]>("/admin/sprites", { params });
+  return data;
+}
+
+// --- Drops / Loot Management ---
+export async function getDropsSummary(params: {
+  charId: string;
+  frequency?: "weekly" | "monthly";
+}): Promise<DropsSummary> {
+  const { data } = await api.get<DropsSummary>("/drops", { params });
   return data;
 }
 

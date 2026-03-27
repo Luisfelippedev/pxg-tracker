@@ -15,6 +15,7 @@ import CharsPage from "@/pages/CharsPage";
 import ProfilePage from "@/pages/ProfilePage";
 import AdminDashboardPage from "@/pages/AdminDashboardPage";
 import AdminTemplatesPage from "@/pages/AdminTemplatesPage";
+import DropsPage from "@/pages/DropsPage";
 import AuthPage from "@/pages/AuthPage";
 import NotFound from "@/pages/NotFound";
 import { authStore } from "@/stores/authStore";
@@ -110,6 +111,16 @@ const App = () => (
                   <RequireNonAdmin>
                     <AppLayout>
                       <MonthlyTasksPage />
+                    </AppLayout>
+                  </RequireNonAdmin>
+                }
+              />
+              <Route
+                path="/drops"
+                element={
+                  <RequireNonAdmin>
+                    <AppLayout>
+                      <DropsPage />
                     </AppLayout>
                   </RequireNonAdmin>
                 }

@@ -114,5 +114,56 @@ export interface PeriodSnapshot {
   completedAt: string;
 }
 
+// ---------------------------------------------------------------------------
+// Drops / Loot Management
+// ---------------------------------------------------------------------------
+
+export interface LootSnapshotItem {
+  slug: string;
+  name: string;
+  spritePath: string;
+  quantity: number;
+  /** Preço unitário NPC. 0 para itens raros. */
+  npcUnitPrice: number;
+  /** quantity × npcUnitPrice. 0 para itens raros. */
+  npcTotal: number;
+  isRare: boolean;
+  templateName: string;
+}
+
+export interface DropsPeriodHistory {
+  year: number;
+  period: number;
+  label: string;
+  npcTotal: number;
+  rareItemCount: number;
+  completedTasks: number;
+  totalTasks: number;
+  items: LootSnapshotItem[];
+}
+
+export interface DropsSummary {
+  frequency: TaskFrequency;
+  current: {
+    year: number;
+    period: number;
+    label: string;
+    npcTotal: number;
+    items: LootSnapshotItem[];
+    rareItems: LootSnapshotItem[];
+    completedLootTasks: number;
+  };
+  history: DropsPeriodHistory[];
+  allTime: {
+    npcTotal: number;
+    rareItemsCollected: number;
+    periodsWithDrops: number;
+    bestPeriodNpc: number;
+    bestPeriodLabel: string;
+    avgNpc: number;
+    streak: number;
+  };
+}
+
 /** @deprecated Alias para compatibilidade - usar Char */
 export type Account = Char;
