@@ -18,38 +18,21 @@ import {
   Sparkles,
   PackageOpen,
   Calendar,
-  CheckCircle2,
   Coins,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
   ChevronUp,
   Filter,
-  Lock,
-  Unlock,
 } from "lucide-react";
 import { nightmareCycleIconsBySlug } from "@/data/nightmareTerrorItems";
 import type {
+  CycleInsight,
   LootSnapshotItem,
   MonthlyHistoryEntry,
   MonthlyCycleSummary,
   WeeklyBreakdownEntry,
 } from "@/types";
-
-// ---------------------------------------------------------------------------
-// Shared helpers
-// ---------------------------------------------------------------------------
-
-interface SelectedCycleData {
-  label: string;
-  isCurrent: boolean;
-  npcTotal: number;
-  items: LootSnapshotItem[];
-  rareItems: LootSnapshotItem[];
-  completedLootTasks: number;
-  totalTasks: number | null;
-  weeklyBreakdown: WeeklyBreakdownEntry[] | null;
-}
 
 // ---------------------------------------------------------------------------
 // ItemSprite
@@ -98,99 +81,280 @@ function ItemSprite({
         containerCls,
       )}
     >
-      {frames.length > 0 ? (
-        <img src={frames[idx]} alt="" className={cn("object-contain", imgCls)} />
+      {frames[idx] ? (
+        <img
+          src={frames[idx]}
+          alt={slug}
+          className={cn("object-contain pixelated", imgCls)}
+          draggable={false}
+        />
       ) : (
-        <PackageOpen className={cn("text-muted-foreground/40", imgCls)} />
+        <Gem className={cn("text-muted-foreground/30", imgCls)} />
       )}
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// NpcItemsTable
+// ActiveCycleHero — header proeminente para o ciclo ativo
 // ---------------------------------------------------------------------------
 
-function NpcItemsTable({ items }: { items: LootSnapshotItem[] }) {
-  const sorted = useMemo(
-    () => [...items].sort((a, b) => b.npcTotal - a.npcTotal),
-    [items],
+function ActiveCycleHero({
+  cycle,
+  vsInsight,
+  streak,
+}: {
+  cycle: MonthlyCycleSummary["currentCycle"];
+  vsInsight?: CycleInsight;
+  streak: number;
+}) {
+  return (
+    <div className="rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/[0.07] via-background to-primary/[0.03] p-6 shadow-card">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        {/* Left: label + total */}
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/70">
+              Ciclo Ativo
+            </span>
+            <Badge className="text-[9px] px-1.5 py-0 h-4 bg-emerald-500/15 text-emerald-400 border-emerald-500/25 font-semibold">
+              {cycle.label}
+            </Badge>
+          </div>
+          <div className="text-4xl sm:text-5xl font-display font-black text-primary tabular-nums leading-none">
+            {formatNpcDollars(cycle.npcTotal)}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            {vsInsight && (
+              <div
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full border px-2.5 py-1",
+                  vsInsight.direction === "up"
+                    ? "border-emerald-500/20 bg-emerald-500/10"
+                    : "border-amber-500/20 bg-amber-500/10",
+                )}
+              >
+                {vsInsight.direction === "up" ? (
+                  <TrendingUp className="h-3 w-3 text-emerald-400" />
+                ) : (
+                  <TrendingDown className="h-3 w-3 text-amber-400" />
+                )}
+                <span
+                  className={cn(
+                    "text-[11px] font-semibold",
+                    vsInsight.direction === "up"
+                      ? "text-emerald-400"
+                      : "text-amber-400",
+                  )}
+                >
+                  {vsInsight.direction === "up" ? "+" : "-"}
+                  {vsInsight.value}% vs mês anterior
+                </span>
+              </div>
+            )}
+            {streak > 1 && (
+              <div className="flex items-center gap-1.5 rounded-full border border-orange-500/20 bg-orange-500/10 px-2.5 py-1">
+                <Flame className="h-3 w-3 text-orange-400" />
+                <span className="text-[11px] font-semibold text-orange-400">
+                  {streak} meses seguidos
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right: month progress ring */}
+        <div className="flex flex-col items-center gap-1.5 shrink-0">
+          <div className="relative h-20 w-20">
+            <svg
+              viewBox="0 0 36 36"
+              className="h-20 w-20"
+              style={{ transform: "rotate(-90deg)" }}
+            >
+              <circle
+                cx="18"
+                cy="18"
+                r="15"
+                fill="none"
+                strokeWidth="2"
+                className="stroke-muted/40"
+              />
+              <circle
+                cx="18"
+                cy="18"
+                r="15"
+                fill="none"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                className="stroke-primary"
+                style={{
+                  strokeDasharray: `${(cycle.monthProgressPct / 100) * 94.2} 94.2`,
+                  transition: "stroke-dasharray 0.7s ease",
+                }}
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-base font-black tabular-nums text-foreground leading-none">
+                {cycle.monthProgressPct}%
+              </span>
+              <span className="text-[9px] text-muted-foreground font-medium leading-tight mt-0.5">
+                do mês
+              </span>
+            </div>
+          </div>
+          <span className="text-[10px] text-muted-foreground/60 text-center">
+            progresso
+          </span>
+        </div>
+      </div>
+    </div>
   );
-  const total = useMemo(
-    () => items.reduce((s, i) => s + i.npcTotal, 0),
-    [items],
-  );
-  if (items.length === 0) return null;
+}
+
+// ---------------------------------------------------------------------------
+// InsightsPanel
+// ---------------------------------------------------------------------------
+
+function InsightsPanel({ insights }: { insights: CycleInsight[] }) {
+  if (insights.length === 0) return null;
 
   return (
-    <div className="rounded-xl border border-border overflow-hidden shadow-card">
-      <div className="px-5 py-3 bg-primary/[0.06] border-b border-border flex items-center gap-2">
-        <Coins className="h-4 w-4 text-primary" />
-        <p className="text-xs font-semibold uppercase tracking-[0.1em] text-primary">
-          Itens com Valor NPC
-        </p>
-      </div>
-      <table className="w-full">
-        <thead>
-          <tr className="border-b border-border/50 bg-muted/10">
-            <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-              Item
-            </th>
-            <th className="px-4 py-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-              Qtd
-            </th>
-            <th className="px-4 py-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground hidden sm:table-cell">
-              Preço/un
-            </th>
-            <th className="px-4 py-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-              Total NPC
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((item) => (
-            <tr
-              key={`${item.slug}-${item.templateName}`}
-              className="border-b border-border/30 last:border-0 hover:bg-primary/[0.02] transition-colors"
+    <div className="flex flex-wrap gap-2">
+      {insights.map((insight, i) => {
+        if (insight.type === "best_week") {
+          return (
+            <div
+              key={i}
+              className="flex items-center gap-1.5 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1.5"
             >
-              <td className="px-4 py-3">
-                <div className="flex items-center gap-2.5">
-                  <ItemSprite slug={item.slug} src={item.spritePath} />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{item.name}</p>
-                    <p className="text-[10px] text-muted-foreground truncate">
-                      {item.templateName}
-                    </p>
-                  </div>
+              <Calendar className="h-3.5 w-3.5 text-blue-400" />
+              <span className="text-xs font-semibold text-blue-400">
+                Melhor semana:{" "}
+                <span className="font-black">{insight.weekLabel}</span>
+                {" • "}
+                {formatNpcDollars(insight.value)}
+              </span>
+            </div>
+          );
+        }
+        if (insight.type === "top_template") {
+          return (
+            <div
+              key={i}
+              className="flex items-center gap-1.5 rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1.5"
+            >
+              <PackageOpen className="h-3.5 w-3.5 text-violet-400" />
+              <span className="text-xs font-semibold text-violet-400">
+                Top conteúdo:{" "}
+                <span className="font-black">{insight.templateName}</span>
+                {" • "}
+                {formatNpcDollars(insight.value)}
+              </span>
+            </div>
+          );
+        }
+        if (insight.type === "vs_previous") {
+          return (
+            <div
+              key={i}
+              className={cn(
+                "flex items-center gap-1.5 rounded-full border px-3 py-1.5",
+                insight.direction === "up"
+                  ? "border-emerald-500/20 bg-emerald-500/10"
+                  : "border-red-500/20 bg-red-500/10",
+              )}
+            >
+              {insight.direction === "up" ? (
+                <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
+              ) : (
+                <TrendingDown className="h-3.5 w-3.5 text-red-400" />
+              )}
+              <span
+                className={cn(
+                  "text-xs font-semibold",
+                  insight.direction === "up" ? "text-emerald-400" : "text-red-400",
+                )}
+              >
+                {insight.direction === "up" ? "+" : "-"}
+                {insight.value}% vs mês anterior
+              </span>
+            </div>
+          );
+        }
+        return null;
+      })}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// WeeklyChart — evolução por semana dentro do ciclo
+// ---------------------------------------------------------------------------
+
+function WeeklyChart({
+  weeks,
+}: {
+  weeks: Array<{ week: number; weekLabel: string; npcTotal: number; rareItems: LootSnapshotItem[] }>;
+}) {
+  const active = weeks.filter((w) => w.npcTotal > 0);
+  if (active.length === 0) return null;
+
+  const maxNpc = Math.max(...active.map((w) => w.npcTotal));
+
+  return (
+    <div className="rounded-xl border border-border overflow-hidden shadow-card gradient-card">
+      <div className="flex items-center gap-2 px-5 py-3.5 border-b border-border/50">
+        <BarChart2 className="h-4 w-4 text-muted-foreground/70" />
+        <span className="text-sm font-semibold">Evolução por Semana</span>
+        <Badge variant="outline" className="text-[10px] ml-auto">
+          {active.length} semana{active.length === 1 ? "" : "s"}
+        </Badge>
+      </div>
+
+      <div className="px-5 py-4 space-y-4">
+        {active.map((w) => {
+          const barPct = maxNpc > 0 ? Math.round((w.npcTotal / maxNpc) * 100) : 0;
+          const rareCount = w.rareItems.reduce((s, i) => s + i.quantity, 0);
+          const isBest = w.npcTotal === maxNpc && active.length > 1;
+
+          return (
+            <div key={`${w.week}`} className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-foreground/80 w-16 tabular-nums">
+                    {w.weekLabel}
+                  </span>
+                  {isBest && (
+                    <Badge className="text-[9px] px-1.5 py-0 h-4 bg-primary/15 text-primary border-primary/25">
+                      melhor
+                    </Badge>
+                  )}
                 </div>
-              </td>
-              <td className="px-4 py-3 text-right text-sm font-mono tabular-nums">
-                {item.quantity.toLocaleString("pt-BR")}
-              </td>
-              <td className="px-4 py-3 text-right text-xs text-muted-foreground hidden sm:table-cell">
-                {formatNpcDollars(item.npcUnitPrice)}
-              </td>
-              <td className="px-4 py-3 text-right">
-                <span className="text-sm font-semibold text-primary">
-                  {formatNpcDollars(item.npcTotal)}
-                </span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr className="bg-primary/[0.04] border-t border-border">
-            <td colSpan={4} className="px-4 py-3 text-right">
-              <span className="text-xs text-muted-foreground mr-2">
-                Total estimado:
-              </span>
-              <span className="text-base font-display font-bold text-primary">
-                {formatNpcDollars(total)}
-              </span>
-            </td>
-          </tr>
-        </tfoot>
-      </table>
+                <div className="flex items-center gap-2">
+                  {rareCount > 0 && (
+                    <span className="flex items-center gap-0.5 text-amber-400 font-medium">
+                      <Sparkles className="h-3 w-3" />
+                      {rareCount}
+                    </span>
+                  )}
+                  <span className="font-semibold text-primary tabular-nums">
+                    {formatNpcDollars(w.npcTotal)}
+                  </span>
+                </div>
+              </div>
+              <div className="h-3 w-full rounded-full bg-muted/40 overflow-hidden">
+                <div
+                  className={cn(
+                    "h-full rounded-full transition-all duration-700",
+                    isBest ? "bg-primary" : "bg-primary/50",
+                  )}
+                  style={{ width: `${barPct}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -201,48 +365,107 @@ function NpcItemsTable({ items }: { items: LootSnapshotItem[] }) {
 
 function RareItemsShowcase({ items }: { items: LootSnapshotItem[] }) {
   if (items.length === 0) return null;
-  const totalQty = items.reduce((s, i) => s + i.quantity, 0);
+
+  const totalRares = items.reduce((s, i) => s + i.quantity, 0);
 
   return (
-    <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.03] overflow-hidden shadow-card">
-      <div className="px-5 py-3 border-b border-amber-500/20 flex items-center gap-2">
+    <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.04] overflow-hidden shadow-card">
+      <div className="flex items-center gap-2 px-5 py-3.5 border-b border-amber-500/20">
         <Sparkles className="h-4 w-4 text-amber-400" />
-        <p className="text-xs font-semibold uppercase tracking-[0.1em] text-amber-400">
-          Itens Raros
-        </p>
-        <Badge
-          variant="outline"
-          className="ml-auto border-amber-500/20 text-amber-400 text-[10px]"
-        >
-          {totalQty} coletado{totalQty === 1 ? "" : "s"}
+        <span className="text-sm font-semibold text-amber-400/90">
+          Vitrine de Raros
+        </span>
+        <Badge className="text-[9px] px-1.5 py-0 h-4 bg-amber-500/15 text-amber-400 border-amber-500/25 ml-auto font-semibold">
+          {totalRares} obtido{totalRares === 1 ? "" : "s"}
         </Badge>
       </div>
-      <div className="p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-        {items.map((item) => (
-          <div
-            key={`${item.slug}-${item.templateName}`}
-            className="flex flex-col items-center gap-2.5 p-3 rounded-xl border border-amber-500/10 bg-amber-500/[0.04] hover:bg-amber-500/[0.08] hover:border-amber-500/20 transition-all duration-200"
-          >
-            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/15">
+      <div className="px-5 py-4">
+        <div className="flex flex-wrap gap-3">
+          {items.map((item) => (
+            <div
+              key={item.slug}
+              className="flex items-center gap-2.5 rounded-xl border border-amber-500/20 bg-amber-500/[0.07] px-3.5 py-3 hover:bg-amber-500/[0.12] transition-colors"
+            >
               <ItemSprite slug={item.slug} src={item.spritePath} size="lg" />
+              <div className="min-w-0">
+                <div className="text-sm font-bold text-amber-200 leading-tight">
+                  {item.name}
+                </div>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="text-xs font-black text-amber-400">
+                    ×{item.quantity}
+                  </span>
+                  {item.templateName && (
+                    <span className="text-[10px] text-muted-foreground/50 truncate max-w-[80px]">
+                      {item.templateName}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
-            <div className="text-center min-w-0 w-full space-y-0.5">
-              <p
-                className="text-xs font-medium text-foreground leading-tight line-clamp-2"
-                title={item.name}
-              >
-                {item.name}
-              </p>
-              <p className="text-[10px] text-muted-foreground/60 truncate">
-                {item.templateName}
-              </p>
-              <p className="text-[11px] font-bold text-amber-400">
-                ×{item.quantity.toLocaleString("pt-BR")}
-              </p>
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// NpcItemsTable
+// ---------------------------------------------------------------------------
+
+function NpcItemsTable({ items }: { items: LootSnapshotItem[] }) {
+  if (items.length === 0) return null;
+
+  return (
+    <div className="rounded-xl border border-border overflow-hidden shadow-card gradient-card">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b border-border bg-muted/20">
+            <th className="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+              Item
+            </th>
+            <th className="px-5 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground hidden sm:table-cell">
+              Qtd
+            </th>
+            <th className="px-5 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+              NPC Total
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item) => (
+            <tr
+              key={item.slug}
+              className="border-b border-border/50 last:border-0 hover:bg-primary/[0.02]"
+            >
+              <td className="px-5 py-3">
+                <div className="flex items-center gap-2.5">
+                  <ItemSprite slug={item.slug} src={item.spritePath} size="sm" />
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-foreground/90 truncate">
+                      {item.name}
+                    </div>
+                    {item.templateName && (
+                      <div className="text-[10px] text-muted-foreground/50">
+                        {item.templateName}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </td>
+              <td className="px-5 py-3 text-right text-sm text-muted-foreground hidden sm:table-cell">
+                ×{item.quantity}
+              </td>
+              <td className="px-5 py-3 text-right">
+                <span className="text-sm font-semibold tabular-nums text-foreground/80">
+                  {formatNpcDollars(item.npcTotal)}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -260,23 +483,18 @@ function TemplateFilterChips({
   selected: string;
   onSelect: (t: string) => void;
 }) {
-  if (templates.length === 0) return null;
-
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground shrink-0">
-        <Filter className="h-3 w-3" />
-        Filtrar
-      </div>
+    <div className="flex flex-wrap gap-2 items-center">
+      <Filter className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
       {["Todos", ...templates].map((t) => (
         <button
           key={t}
           onClick={() => onSelect(t)}
           className={cn(
-            "px-3 py-1 rounded-full text-xs font-medium transition-all border whitespace-nowrap",
-            t === selected
-              ? "bg-primary text-primary-foreground border-primary shadow-sm"
-              : "bg-muted/40 text-muted-foreground border-border/60 hover:bg-muted/80",
+            "rounded-full border px-3 py-1 text-xs font-semibold transition-colors",
+            selected === t
+              ? "border-primary/40 bg-primary/10 text-primary"
+              : "border-border/50 bg-muted/20 text-muted-foreground hover:bg-muted/40",
           )}
         >
           {t}
@@ -287,13 +505,13 @@ function TemplateFilterChips({
 }
 
 // ---------------------------------------------------------------------------
-// WeeklyBreakdownPanel
+// WeeklyBreakdownPanel (para meses históricos)
 // ---------------------------------------------------------------------------
 
 function WeeklyBreakdownPanel({
   weeks,
 }: {
-  weeks: WeeklyBreakdownEntry[] | Array<{
+  weeks: Array<{
     year: number;
     week: number;
     weekLabel: string;
@@ -331,14 +549,6 @@ function WeeklyBreakdownPanel({
         <div className="border-t border-border px-5 py-4 space-y-3">
           {filtered.map((w) => {
             const barPct = maxNpc > 0 ? Math.round((w.npcTotal / maxNpc) * 100) : 0;
-            const rareCount =
-              "rareItemCount" in w
-                ? (w as { rareItemCount: number }).rareItemCount
-                : (w as WeeklyBreakdownEntry).rareItems.reduce(
-                    (s, i) => s + i.quantity,
-                    0,
-                  );
-
             return (
               <div key={`${w.year}-${w.week}`} className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
@@ -346,10 +556,10 @@ function WeeklyBreakdownPanel({
                     {w.weekLabel}
                   </span>
                   <div className="flex items-center gap-2">
-                    {rareCount > 0 && (
+                    {w.rareItemCount > 0 && (
                       <span className="flex items-center gap-1 text-amber-400 font-medium">
                         <Sparkles className="h-3 w-3" />
-                        {rareCount}
+                        {w.rareItemCount}
                       </span>
                     )}
                     <span className="font-semibold text-primary tabular-nums">
@@ -461,9 +671,6 @@ function HistoryTable({
             <th className="px-5 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground hidden sm:table-cell">
               Raros
             </th>
-            <th className="px-5 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground hidden sm:table-cell">
-              Semanas
-            </th>
             <th className="px-3 py-3 w-8" />
           </tr>
         </thead>
@@ -478,9 +685,7 @@ function HistoryTable({
                 onClick={() => onSelect(key)}
                 className={cn(
                   "border-b border-border/50 last:border-0 cursor-pointer transition-colors",
-                  isSelected
-                    ? "bg-primary/[0.06]"
-                    : "hover:bg-primary/[0.02]",
+                  isSelected ? "bg-primary/[0.06]" : "hover:bg-primary/[0.02]",
                 )}
               >
                 <td className="px-5 py-3.5">
@@ -498,7 +703,7 @@ function HistoryTable({
                 </td>
                 <td className="px-5 py-3.5 text-right">
                   {h.npcTotal > 0 ? (
-                    <span className="text-sm font-semibold text-primary">
+                    <span className="text-sm font-semibold text-primary tabular-nums">
                       {formatNpcDollars(h.npcTotal)}
                     </span>
                   ) : (
@@ -515,22 +720,11 @@ function HistoryTable({
                     <span className="text-xs text-muted-foreground">—</span>
                   )}
                 </td>
-                <td className="px-5 py-3.5 text-right hidden sm:table-cell">
-                  {h.weeks.length > 0 ? (
-                    <span className="text-xs text-muted-foreground">
-                      {h.weeks.length}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
-                </td>
                 <td className="px-3 py-3.5">
                   <ChevronRight
                     className={cn(
                       "h-3.5 w-3.5 transition-colors",
-                      isSelected
-                        ? "text-primary"
-                        : "text-muted-foreground/30",
+                      isSelected ? "text-primary" : "text-muted-foreground/30",
                     )}
                   />
                 </td>
@@ -547,6 +741,18 @@ function HistoryTable({
 // Page
 // ---------------------------------------------------------------------------
 
+interface SelectedCycleData {
+  label: string;
+  isCurrent: boolean;
+  npcTotal: number;
+  items: LootSnapshotItem[];
+  rareItems: LootSnapshotItem[];
+  completedLootTasks: number;
+  totalTasks: number | null;
+  weeklyBreakdown: WeeklyBreakdownEntry[] | null;
+  historyWeeks: MonthlyHistoryEntry["weeks"] | null;
+}
+
 export default function DropsPage() {
   const { selectedChar } = useChar();
   const { data: chars } = useChars();
@@ -559,26 +765,19 @@ export default function DropsPage() {
 
   const detailRef = useRef<HTMLElement>(null);
 
-  // Reset selections when char changes
   useEffect(() => {
     setSelectedMonthKey("current");
     setSelectedTemplate("Todos");
   }, [charId]);
 
-  // Reset template filter when month changes
   useEffect(() => {
     setSelectedTemplate("Todos");
   }, [selectedMonthKey]);
 
-  // All selectable months (current + history)
   const allMonths = useMemo((): MonthEntry[] => {
     if (!data) return [{ key: "current", label: "—", isCurrent: true }];
     return [
-      {
-        key: "current",
-        label: data.currentCycle.label,
-        isCurrent: true,
-      },
+      { key: "current", label: data.currentCycle.label, isCurrent: true },
       ...(data.history ?? []).map((h) => ({
         key: `${h.year}:${h.month}`,
         label: h.label,
@@ -587,7 +786,6 @@ export default function DropsPage() {
     ];
   }, [data]);
 
-  // Resolve which cycle's data to show
   const selectedCycleData = useMemo((): SelectedCycleData | null => {
     if (!data) return null;
 
@@ -601,6 +799,7 @@ export default function DropsPage() {
         completedLootTasks: data.currentCycle.completedLootTasks,
         totalTasks: null,
         weeklyBreakdown: data.currentCycle.weeklyBreakdown,
+        historyWeeks: null,
       };
     }
 
@@ -617,21 +816,11 @@ export default function DropsPage() {
       rareItems: h.items.filter((i) => i.isRare),
       completedLootTasks: h.completedTasks,
       totalTasks: h.totalTasks,
-      weeklyBreakdown: h.weeks.length > 0 ? null : null, // use h.weeks below
-      // pass weeks separately via historyWeeks
+      weeklyBreakdown: null,
+      historyWeeks: h.weeks ?? null,
     };
   }, [data, selectedMonthKey]);
 
-  // Weeks for the selected historical month (from MonthlyHistoryEntry)
-  const historyWeeks = useMemo(() => {
-    if (!data || selectedMonthKey === "current") return null;
-    const h = data.history.find(
-      (h) => `${h.year}:${h.month}` === selectedMonthKey,
-    );
-    return h?.weeks ?? null;
-  }, [data, selectedMonthKey]);
-
-  // Available templates for filter
   const availableTemplates = useMemo(() => {
     if (!selectedCycleData) return [];
     const allItems = [...selectedCycleData.items, ...selectedCycleData.rareItems];
@@ -640,7 +829,6 @@ export default function DropsPage() {
     ].sort();
   }, [selectedCycleData]);
 
-  // Apply template filter
   const { visibleItems, visibleRareItems } = useMemo(() => {
     if (!selectedCycleData)
       return { visibleItems: [], visibleRareItems: [] };
@@ -659,16 +847,10 @@ export default function DropsPage() {
     };
   }, [selectedCycleData, selectedTemplate]);
 
-  const { allTime } = data ?? {};
-  const hasDrops = visibleItems.length > 0 || visibleRareItems.length > 0;
+  const { allTime, insights, currentCycle } = data ?? {};
 
-  const performance = useMemo(() => {
-    const avg = allTime?.avgNpc ?? 0;
-    const curr = data?.currentCycle.npcTotal ?? 0;
-    if (avg === 0 || curr === 0) return null;
-    const pct = Math.round(((curr - avg) / avg) * 100);
-    return { pct, positive: pct >= 0 };
-  }, [allTime?.avgNpc, data?.currentCycle.npcTotal]);
+  const vsInsight = insights?.find((i) => i.type === "vs_previous");
+  const otherInsights = insights?.filter((i) => i.type !== "vs_previous") ?? [];
 
   function handleSelectMonth(key: string) {
     setSelectedMonthKey(key);
@@ -678,8 +860,10 @@ export default function DropsPage() {
   }
 
   const hasNoChars = chars && chars.length === 0;
+  const hasDrops = visibleItems.length > 0 || visibleRareItems.length > 0;
+  const isCurrentMonthSelected = selectedMonthKey === "current";
 
-  // ── Early returns ──────────────────────────────────────────────────────────
+  // ── Page Header ──────────────────────────────────────────────────────────
 
   const pageHeader = (
     <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -696,19 +880,10 @@ export default function DropsPage() {
           </p>
         )}
       </div>
-      {!isLoading && data && (
-        <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-4 py-2">
-          <Unlock className="h-3.5 w-3.5 text-emerald-400" />
-          <span className="text-sm font-semibold text-foreground/80">
-            {data.currentCycle.label}
-          </span>
-          <Badge className="text-[9px] px-1.5 py-0 h-4 bg-emerald-500/15 text-emerald-400 border-emerald-500/25">
-            Ativo
-          </Badge>
-        </div>
-      )}
     </div>
   );
+
+  // ── Early returns ─────────────────────────────────────────────────────────
 
   if (hasNoChars) {
     return (
@@ -731,17 +906,39 @@ export default function DropsPage() {
     );
   }
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-8">
-      {/* ── Header ── */}
       {pageHeader}
 
-      {/* ── All-time stats ── */}
+      {/* ── Hero do ciclo ativo ── */}
+      {!isLoading && data && isCurrentMonthSelected && (
+        <ActiveCycleHero
+          cycle={data.currentCycle}
+          vsInsight={vsInsight}
+          streak={allTime?.streak ?? 0}
+        />
+      )}
+
+      {/* ── Insights do ciclo ativo ── */}
+      {!isLoading && otherInsights.length > 0 && isCurrentMonthSelected && (
+        <InsightsPanel insights={otherInsights} />
+      )}
+
+      {/* ── Gráfico semanal (ciclo ativo com breakdown) ── */}
+      {!isLoading &&
+        isCurrentMonthSelected &&
+        (data?.currentCycle.weeklyBreakdown?.length ?? 0) > 0 && (
+          <WeeklyChart weeks={data!.currentCycle.weeklyBreakdown} />
+        )}
+
+      {/* ── Estatísticas globais ── */}
       {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[0, 1, 2, 3].map((i) => <SkeletonCard key={i} />)}
+          {[0, 1, 2, 3].map((i) => (
+            <SkeletonCard key={i} />
+          ))}
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -773,48 +970,7 @@ export default function DropsPage() {
         </div>
       )}
 
-      {/* ── Gamification badges ── */}
-      {!isLoading &&
-        ((allTime?.streak ?? 0) > 1 || performance !== null) && (
-          <div className="flex flex-wrap gap-2">
-            {(allTime?.streak ?? 0) > 1 && (
-              <div className="flex items-center gap-1.5 rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1.5">
-                <Flame className="h-3.5 w-3.5 text-orange-400" />
-                <span className="text-xs font-semibold text-orange-400">
-                  {allTime!.streak} meses seguidos com drops
-                </span>
-              </div>
-            )}
-            {performance !== null && (
-              <div
-                className={cn(
-                  "flex items-center gap-1.5 rounded-full border px-3 py-1.5",
-                  performance.positive
-                    ? "border-emerald-500/20 bg-emerald-500/10"
-                    : "border-amber-500/20 bg-amber-500/10",
-                )}
-              >
-                {performance.positive ? (
-                  <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
-                ) : (
-                  <TrendingDown className="h-3.5 w-3.5 text-amber-400" />
-                )}
-                <span
-                  className={cn(
-                    "text-xs font-semibold",
-                    performance.positive ? "text-emerald-400" : "text-amber-400",
-                  )}
-                >
-                  {performance.positive
-                    ? `↑ ${performance.pct}% acima da média`
-                    : `↓ ${Math.abs(performance.pct)}% abaixo da média`}
-                </span>
-              </div>
-            )}
-          </div>
-        )}
-
-      {/* ── Month Navigator (only when there's history) ── */}
+      {/* ── Navegador de mês ── */}
       {!isLoading && allMonths.length > 1 && (
         <div className="flex items-center justify-between gap-3 flex-wrap rounded-xl border border-border gradient-card px-5 py-3.5 shadow-card">
           <div className="flex items-center gap-2 text-sm font-semibold">
@@ -829,7 +985,7 @@ export default function DropsPage() {
         </div>
       )}
 
-      {/* ── Template filter ── */}
+      {/* ── Filtro por template ── */}
       {!isLoading && availableTemplates.length > 1 && (
         <TemplateFilterChips
           templates={availableTemplates}
@@ -838,125 +994,71 @@ export default function DropsPage() {
         />
       )}
 
-      {/* ── Cycle detail ── */}
+      {/* ── Detalhe do ciclo selecionado ── */}
       <section ref={detailRef} className="space-y-4 scroll-mt-6">
+        {/* Header do ciclo */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <h2 className="text-lg font-display font-bold flex items-center gap-2.5">
             <div className="w-1 h-5 rounded-full gradient-primary" />
             {selectedCycleData?.isCurrent
-              ? "Ciclo Atual"
+              ? "Drops do Ciclo Atual"
               : selectedCycleData?.label ?? "Período"}
-            {selectedCycleData?.isCurrent && (
-              <span className="text-muted-foreground font-normal text-sm">
-                {selectedCycleData.label}
-              </span>
-            )}
           </h2>
-
-          <div className="flex items-center gap-2 flex-wrap">
-            {selectedCycleData?.isCurrent ? (
-              <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1">
-                <Unlock className="h-3 w-3 text-emerald-400" />
-                <span className="text-[11px] font-semibold text-emerald-400">
-                  Ciclo Ativo
-                </span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/30 px-2.5 py-1">
-                <Lock className="h-3 w-3 text-muted-foreground/60" />
-                <span className="text-[11px] font-semibold text-muted-foreground/70">
-                  Ciclo Encerrado
-                </span>
-              </div>
-            )}
-
-            {(selectedCycleData?.completedLootTasks ?? 0) > 0 && (
-              <Badge variant="secondary" className="gap-1.5 text-xs">
-                <CheckCircle2 className="h-3 w-3" />
-                {selectedCycleData!.completedLootTasks}
-                {selectedCycleData?.totalTasks != null
-                  ? `/${selectedCycleData.totalTasks}`
-                  : ""}{" "}
-                {selectedCycleData!.completedLootTasks === 1
-                  ? "tarefa"
-                  : "tarefas"}
-              </Badge>
-            )}
-
-            {selectedTemplate !== "Todos" && visibleItems.length > 0 && (
-              <Badge
-                variant="outline"
-                className="gap-1 text-xs text-primary border-primary/20"
-              >
-                <Coins className="h-3 w-3" />
-                {formatNpcDollars(
-                  visibleItems.reduce((s, i) => s + i.npcTotal, 0),
-                )}
-              </Badge>
-            )}
-          </div>
+          {selectedCycleData && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Coins className="h-3.5 w-3.5" />
+              <span>
+                {selectedCycleData.completedLootTasks} atividade
+                {selectedCycleData.completedLootTasks === 1 ? "" : "s"}
+                {selectedCycleData.totalTasks
+                  ? ` de ${selectedCycleData.totalTasks}`
+                  : ""}
+              </span>
+            </div>
+          )}
         </div>
 
         {isLoading ? (
-          <div className="space-y-4">
-            <SkeletonCard />
-            <SkeletonCard />
-          </div>
-        ) : hasDrops ? (
-          <div className="space-y-4">
-            <NpcItemsTable items={visibleItems} />
-            <RareItemsShowcase items={visibleRareItems} />
-          </div>
+          <SkeletonCard />
+        ) : !hasDrops ? (
+          <EmptyState
+            title="Nenhum drop registrado"
+            description={
+              isCurrentMonthSelected
+                ? "Complete conteúdos com loot para ver os ganhos aqui."
+                : "Este mês não teve drops registrados."
+            }
+          />
         ) : (
-          <div className="rounded-xl border border-border gradient-card p-10 text-center shadow-card">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted/40 border border-border mx-auto mb-4">
-              <PackageOpen className="h-7 w-7 text-muted-foreground/40" />
-            </div>
-            <p className="text-sm font-semibold text-muted-foreground">
-              {selectedTemplate !== "Todos"
-                ? `Nenhum drop de "${selectedTemplate}" neste período`
-                : selectedCycleData?.isCurrent
-                  ? "Nenhum drop registrado neste ciclo"
-                  : `Nenhum drop registrado em ${selectedCycleData?.label}`}
-            </p>
-            <p className="text-xs text-muted-foreground/60 mt-1.5 max-w-xs mx-auto">
-              {selectedTemplate !== "Todos"
-                ? "Tente selecionar outro conteúdo ou remover o filtro."
-                : selectedCycleData?.isCurrent
-                  ? "Complete tarefas de loot e registre seus drops para ver o balancete aqui."
-                  : "Este ciclo foi encerrado sem drops registrados."}
-            </p>
+          <div className="space-y-4">
+            {/* Vitrine de raros */}
+            <RareItemsShowcase items={visibleRareItems} />
+
+            {/* Tabela de itens NPC */}
+            {visibleItems.length > 0 && <NpcItemsTable items={visibleItems} />}
+
+            {/* Breakdown semanal (meses históricos) */}
+            {selectedCycleData?.historyWeeks &&
+              selectedCycleData.historyWeeks.length > 0 && (
+                <WeeklyBreakdownPanel weeks={selectedCycleData.historyWeeks} />
+              )}
           </div>
         )}
       </section>
 
-      {/* ── Weekly breakdown (collapsible) ── */}
-      {!isLoading && (() => {
-        const weeks =
-          selectedMonthKey === "current"
-            ? (data?.currentCycle.weeklyBreakdown ?? [])
-            : (historyWeeks ?? []);
-        if (weeks.length === 0) return null;
-        return <WeeklyBreakdownPanel weeks={weeks} />;
-      })()}
-
-      {/* ── History ── */}
+      {/* ── Histórico de ciclos fechados ── */}
       {!isLoading && (data?.history?.length ?? 0) > 0 && (
-        <section className="space-y-4">
-          <h2 className="text-lg font-display font-bold flex items-center gap-2.5">
-            <div className="w-1 h-5 rounded-full bg-muted-foreground/30" />
-            Histórico
-            <span className="text-muted-foreground font-normal text-sm">
-              {data!.history.length}{" "}
-              {data!.history.length === 1 ? "mês anterior" : "meses anteriores"}
-            </span>
+        <div className="space-y-3">
+          <h2 className="text-base font-display font-bold flex items-center gap-2.5">
+            <div className="w-1 h-4 rounded-full bg-muted-foreground/30" />
+            Histórico de Ciclos
           </h2>
           <HistoryTable
             history={data!.history}
             selectedKey={selectedMonthKey}
             onSelect={handleSelectMonth}
           />
-        </section>
+        </div>
       )}
     </div>
   );

@@ -139,12 +139,10 @@ export class TrackerController {
   getHistory(
     @CurrentUser() user: { sub: string },
     @Query('charId') charId: string,
-    @Query('frequency') frequency?: 'weekly' | 'monthly',
     @Query('limit') limit?: string,
   ) {
     return this.trackerService.getHistory(user.sub, {
       charId,
-      frequency,
       limit: limit ? Number(limit) : 52,
     });
   }

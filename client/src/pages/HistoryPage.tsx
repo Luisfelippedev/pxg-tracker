@@ -1,15 +1,11 @@
-import { useState } from "react";
 import { useChar } from "@/contexts/CharContext";
 import { useChars, usePeriodHistory } from "@/hooks/useTaskData";
 import { SkeletonCard, SkeletonTable } from "@/components/Skeletons";
 import StatCard from "@/components/StatCard";
 import EmptyState from "@/components/EmptyState";
 import NoCharsEmptyState from "@/components/NoCharsEmptyState";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   History,
-  CalendarDays,
-  CalendarRange,
   TrendingUp,
   TrendingDown,
   Minus,
@@ -20,7 +16,6 @@ import {
   Lightbulb,
   Award,
 } from "lucide-react";
-import { getIsoWeekRange } from "@/services/periods";
 import { PeriodSnapshot } from "@/types";
 
 const monthNames = [
@@ -28,16 +23,11 @@ const monthNames = [
   "Jul", "Ago", "Set", "Out", "Nov", "Dez",
 ];
 
-function formatPeriodLabel(snap: Pick<PeriodSnapshot, "frequency" | "year" | "period">) {
-  if (snap.frequency === "weekly") {
-    const { weekStart, weekEnd } = getIsoWeekRange(snap.year, snap.period);
-    return `S${snap.period} (${weekStart.format("DD/MM")} – ${weekEnd.format("DD/MM")})`;
-  }
+function formatMonthLabel(snap: Pick<PeriodSnapshot, "year" | "period">): string {
   return `${monthNames[snap.period - 1]}/${snap.year}`;
 }
 
-function formatPeriodShort(snap: Pick<PeriodSnapshot, "frequency" | "year" | "period">) {
-  if (snap.frequency === "weekly") return `S${snap.period}`;
+function formatMonthShort(snap: Pick<PeriodSnapshot, "period">): string {
   return monthNames[snap.period - 1];
 }
 
@@ -78,27 +68,30 @@ function OverviewCards({ history }: { history: PeriodSnapshot[] }) {
       : 0;
   const perfectPeriods = pcts.filter((p) => p === 100).length;
   const bestPct = pcts.length > 0 ? Math.max(...pcts) : 0;
-  const bestIdx = pcts.indexOf(bestPct);
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <StatCard title="Períodos Registrados" value={totalPeriods} icon={BarChart3} />
+      <StatCard title="Ciclos Registrados" value={totalPeriods} icon={BarChart3} />
       <StatCard
         title="Média de Conclusão"
         value={`${avgPct}%`}
-        subtitle="por período"
+        subtitle="por ciclo mensal"
         icon={TrendingUp}
       />
       <StatCard
-        title="Períodos Perfeitos"
+        title="Ciclos Perfeitos"
         value={perfectPeriods}
         subtitle="com 100% concluído"
         icon={CheckCircle2}
       />
       <StatCard
-        title="Melhor Período"
+        title="Melhor Ciclo"
         value={`${bestPct}%`}
-        subtitle={bestIdx >= 0 ? formatPeriodShort(history[bestIdx]) : "-"}
+        subtitle={
+          bestPct > 0 && pcts.indexOf(bestPct) >= 0
+            ? formatMonthShort(history[pcts.indexOf(bestPct)])
+            : "—"
+        }
         icon={Award}
         accent
       />
@@ -111,7 +104,6 @@ function OverviewCards({ history }: { history: PeriodSnapshot[] }) {
 // ---------------------------------------------------------------------------
 
 function PerformanceTimeline({ history }: { history: PeriodSnapshot[] }) {
-  // Exibe últimos 20 períodos: mais antigo à esquerda, mais recente à direita
   const displayed = [...history].reverse().slice(-20);
   if (displayed.length < 2) return null;
 
@@ -121,7 +113,7 @@ function PerformanceTimeline({ history }: { history: PeriodSnapshot[] }) {
         <div className="w-1 h-5 rounded-full gradient-primary" />
         Timeline de Desempenho
         <span className="text-xs text-muted-foreground font-normal ml-auto">
-          Últimos {displayed.length} períodos
+          Últimos {displayed.length} ciclos
         </span>
       </h2>
 
@@ -133,7 +125,7 @@ function PerformanceTimeline({ history }: { history: PeriodSnapshot[] }) {
             <div
               key={snap.id}
               className="group flex flex-col items-center justify-end flex-1 min-w-0 h-full gap-0"
-              title={`${formatPeriodLabel(snap)}: ${pct}%`}
+              title={`${formatMonthLabel(snap)}: ${pct}%`}
             >
               <span className="text-[9px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity font-mono leading-none mb-1">
                 {pct}%
@@ -143,7 +135,7 @@ function PerformanceTimeline({ history }: { history: PeriodSnapshot[] }) {
                 style={{ height: `${heightPct}%` }}
               />
               <span className="text-[9px] text-muted-foreground truncate w-full text-center mt-1 leading-none">
-                {formatPeriodShort(snap)}
+                {formatMonthShort(snap)}
               </span>
             </div>
           );
@@ -182,18 +174,15 @@ function InsightsPanel({ history }: { history: PeriodSnapshot[] }) {
   const pcts = history.map((s) => calcPct(s.completedTasks, s.totalTasks));
   const avgPct = Math.round(pcts.reduce((s, p) => s + p, 0) / pcts.length);
   const perfectCount = pcts.filter((p) => p === 100).length;
-
   const maxPct = Math.max(...pcts);
   const bestIdx = pcts.indexOf(maxPct);
 
-  // Streak: períodos consecutivos com >= 50% (do mais recente para o mais antigo)
   let streak = 0;
   for (const pct of pcts) {
     if (pct >= 50) streak++;
     else break;
   }
 
-  // Tendência: últimos 4 vs 4 anteriores
   let trendText = "";
   let TrendIcon = Minus;
   let trendClass = "text-muted-foreground";
@@ -204,15 +193,15 @@ function InsightsPanel({ history }: { history: PeriodSnapshot[] }) {
       const prev4Avg = prev4.reduce((s, p) => s + p, 0) / prev4.length;
       const diff = recent4Avg - prev4Avg;
       if (diff > 5) {
-        trendText = `Tendência de alta: últimos 4 períodos ${Math.abs(diff).toFixed(0)}pp acima dos anteriores.`;
+        trendText = `Tendência de alta: últimos 4 ciclos ${Math.abs(diff).toFixed(0)}pp acima dos anteriores.`;
         TrendIcon = TrendingUp;
         trendClass = "text-emerald-400";
       } else if (diff < -5) {
-        trendText = `Tendência de queda: últimos 4 períodos ${Math.abs(diff).toFixed(0)}pp abaixo dos anteriores.`;
+        trendText = `Tendência de queda: últimos 4 ciclos ${Math.abs(diff).toFixed(0)}pp abaixo dos anteriores.`;
         TrendIcon = TrendingDown;
         trendClass = "text-red-400";
       } else {
-        trendText = "Desempenho estável nos últimos períodos.";
+        trendText = "Desempenho estável nos últimos ciclos.";
         TrendIcon = Minus;
         trendClass = "text-muted-foreground";
       }
@@ -227,14 +216,14 @@ function InsightsPanel({ history }: { history: PeriodSnapshot[] }) {
     {
       icon: Award,
       iconClass: "text-yellow-400",
-      text: `Melhor período: ${formatPeriodLabel(history[bestIdx])} com ${maxPct}% de conclusão.`,
+      text: `Melhor ciclo: ${formatMonthLabel(history[bestIdx])} com ${maxPct}% de conclusão.`,
     },
     ...(streak >= 3
       ? [
           {
             icon: Flame,
             iconClass: "text-orange-400",
-            text: `Sequência ativa: ${streak} períodos consecutivos com 50%+ concluído.`,
+            text: `Sequência ativa: ${streak} ciclos consecutivos com 50%+ concluído.`,
           },
         ]
       : []),
@@ -243,7 +232,7 @@ function InsightsPanel({ history }: { history: PeriodSnapshot[] }) {
           {
             icon: CheckCircle2,
             iconClass: "text-emerald-400",
-            text: `${perfectCount} ${perfectCount === 1 ? "período perfeito" : "períodos perfeitos"} (100%) de ${history.length} registrados.`,
+            text: `${perfectCount} ${perfectCount === 1 ? "ciclo perfeito" : "ciclos perfeitos"} (100%) de ${history.length} registrados.`,
           },
         ]
       : []),
@@ -251,7 +240,7 @@ function InsightsPanel({ history }: { history: PeriodSnapshot[] }) {
     {
       icon: Target,
       iconClass: "text-primary",
-      text: `Média geral de conclusão: ${avgPct}% ao longo de ${history.length} períodos.`,
+      text: `Média geral de conclusão: ${avgPct}% ao longo de ${history.length} ciclos mensais.`,
     },
   ];
 
@@ -267,7 +256,9 @@ function InsightsPanel({ history }: { history: PeriodSnapshot[] }) {
             <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted/50 border border-border mt-0.5">
               <insight.icon className={`h-3.5 w-3.5 ${insight.iconClass}`} />
             </div>
-            <p className="text-sm text-muted-foreground leading-relaxed">{insight.text}</p>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {insight.text}
+            </p>
           </div>
         ))}
       </div>
@@ -276,7 +267,7 @@ function InsightsPanel({ history }: { history: PeriodSnapshot[] }) {
 }
 
 // ---------------------------------------------------------------------------
-// Enhanced History Table
+// History Table
 // ---------------------------------------------------------------------------
 
 function EnhancedHistoryTable({ history }: { history: PeriodSnapshot[] }) {
@@ -288,7 +279,7 @@ function EnhancedHistoryTable({ history }: { history: PeriodSnapshot[] }) {
         <thead>
           <tr className="border-b border-border bg-muted/20">
             <th className="px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-              Período
+              Ciclo
             </th>
             <th className="px-5 py-3.5 text-center text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
               Progresso
@@ -312,7 +303,9 @@ function EnhancedHistoryTable({ history }: { history: PeriodSnapshot[] }) {
                 key={snap.id}
                 className="border-b border-border/50 last:border-0 hover:bg-primary/[0.03]"
               >
-                <td className="px-5 py-3 text-sm font-medium">{formatPeriodLabel(snap)}</td>
+                <td className="px-5 py-3 text-sm font-medium">
+                  {formatMonthLabel(snap)}
+                </td>
                 <td className="px-5 py-3">
                   <div className="flex items-center gap-2 justify-center">
                     <div className="h-1.5 w-20 rounded-full bg-muted overflow-hidden">
@@ -348,62 +341,16 @@ function EnhancedHistoryTable({ history }: { history: PeriodSnapshot[] }) {
 }
 
 // ---------------------------------------------------------------------------
-// Content wrapper (one per tab)
-// ---------------------------------------------------------------------------
-
-function HistoryContent({
-  snapshots,
-  isLoading,
-  freqLabel,
-}: {
-  snapshots: PeriodSnapshot[] | undefined;
-  isLoading: boolean;
-  freqLabel: string;
-}) {
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[0, 1, 2, 3].map((i) => (
-            <SkeletonCard key={i} />
-          ))}
-        </div>
-        <SkeletonTable rows={6} />
-      </div>
-    );
-  }
-
-  if (!snapshots || snapshots.length === 0) {
-    return (
-      <EmptyState
-        title={`Sem histórico de ${freqLabel}`}
-        description="Complete um período de tarefas para que ele apareça aqui."
-      />
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <OverviewCards history={snapshots} />
-      <PerformanceTimeline history={snapshots} />
-      <InsightsPanel history={snapshots} />
-      <EnhancedHistoryTable history={snapshots} />
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
 export default function HistoryPage() {
   const { selectedChar } = useChar();
   const { data: chars } = useChars();
-  const [freqTab, setFreqTab] = useState<"weekly" | "monthly">("weekly");
 
+  // Histórico mensal apenas — ciclos mensais são a unidade de evolução
   const { data: history, isLoading } = usePeriodHistory(
     selectedChar?.id ?? null,
-    freqTab,
   );
 
   const hasNoChars = chars && chars.length === 0;
@@ -417,7 +364,7 @@ export default function HistoryPage() {
         Histórico
       </h1>
       <p className="text-muted-foreground text-sm mt-1.5 pl-12">
-        Desempenho e evolução por período
+        Evolução por ciclo mensal
       </p>
     </div>
   );
@@ -431,47 +378,51 @@ export default function HistoryPage() {
     );
   }
 
-  return (
-    <div className="space-y-6">
-      {pageHeader}
-
-      {!selectedChar ? (
+  if (!selectedChar) {
+    return (
+      <div className="space-y-6">
+        {pageHeader}
         <EmptyState
           title="Selecione um char"
           description="Escolha um personagem para ver o histórico."
         />
-      ) : (
-        <Tabs
-          value={freqTab}
-          onValueChange={(v) => setFreqTab(v as "weekly" | "monthly")}
-        >
-          <TabsList className="grid w-full max-w-xs grid-cols-2">
-            <TabsTrigger value="weekly" className="flex items-center gap-2">
-              <CalendarDays className="h-4 w-4" />
-              Semanais
-            </TabsTrigger>
-            <TabsTrigger value="monthly" className="flex items-center gap-2">
-              <CalendarRange className="h-4 w-4" />
-              Mensais
-            </TabsTrigger>
-          </TabsList>
+      </div>
+    );
+  }
 
-          <TabsContent value="weekly" className="mt-6">
-            <HistoryContent
-              snapshots={history}
-              isLoading={isLoading}
-              freqLabel="semanais"
-            />
-          </TabsContent>
-          <TabsContent value="monthly" className="mt-6">
-            <HistoryContent
-              snapshots={history}
-              isLoading={isLoading}
-              freqLabel="mensais"
-            />
-          </TabsContent>
-        </Tabs>
-      )}
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        {pageHeader}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
+        <SkeletonTable rows={6} />
+      </div>
+    );
+  }
+
+  if (!history || history.length === 0) {
+    return (
+      <div className="space-y-6">
+        {pageHeader}
+        <EmptyState
+          title="Sem histórico ainda"
+          description="Complete um ciclo mensal de tarefas para que ele apareça aqui."
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {pageHeader}
+      <OverviewCards history={history} />
+      <PerformanceTimeline history={history} />
+      <InsightsPanel history={history} />
+      <EnhancedHistoryTable history={history} />
     </div>
   );
 }

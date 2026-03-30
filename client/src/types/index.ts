@@ -202,6 +202,24 @@ export interface MonthlyHistoryEntry {
   }>;
 }
 
+// ---------------------------------------------------------------------------
+// Insights automáticos do ciclo ativo
+// ---------------------------------------------------------------------------
+
+export type CycleInsightType = 'best_week' | 'top_template' | 'vs_previous';
+
+export interface CycleInsight {
+  type: CycleInsightType;
+  /** Rótulo da semana (best_week) */
+  weekLabel?: string;
+  /** Nome do template (top_template) */
+  templateName?: string;
+  /** 'up' | 'down' (vs_previous) */
+  direction?: 'up' | 'down';
+  /** NPC total (best_week/top_template) ou percentual absoluto (vs_previous) */
+  value: number;
+}
+
 export interface MonthlyCycleSummary {
   currentCycle: {
     year: number;
@@ -212,6 +230,8 @@ export interface MonthlyCycleSummary {
     rareItems: LootSnapshotItem[];
     completedLootTasks: number;
     weeklyBreakdown: WeeklyBreakdownEntry[];
+    /** Percentual de dias decorridos no mês atual (1–100) */
+    monthProgressPct: number;
   };
   history: MonthlyHistoryEntry[];
   allTime: {
@@ -223,6 +243,8 @@ export interface MonthlyCycleSummary {
     avgNpc: number;
     streak: number;
   };
+  /** Insights automáticos gerados a partir dos dados do ciclo ativo */
+  insights: CycleInsight[];
 }
 
 /** @deprecated Alias para compatibilidade - usar Char */

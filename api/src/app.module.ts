@@ -16,6 +16,7 @@ import { CharTemplate } from './tracker/entities/char-template.entity';
 import { TaskInstance } from './tracker/entities/task-instance.entity';
 import { PeriodSnapshot } from './tracker/entities/period-snapshot.entity';
 import { TemplateItem } from './tracker/entities/template-item.entity';
+import { DropRecord } from './tracker/entities/drop-record.entity';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { TemplateItem } from './tracker/entities/template-item.entity';
         TaskInstance,
         PeriodSnapshot,
         TemplateItem,
+        DropRecord,
       ],
       synchronize: true,
     }),

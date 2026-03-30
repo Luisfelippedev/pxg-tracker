@@ -37,6 +37,14 @@ export class PeriodSnapshot {
   @Column({ type: 'jsonb', nullable: true })
   lootData!: LootSnapshotData | null;
 
+  /**
+   * Quando true, este snapshot mensal foi criado pela lógica unificada que usa
+   * DropRecord como fonte. Isso evita dupla contagem ao mesclar snapshots
+   * semanais e mensais no histórico.
+   */
+  @Column({ default: false })
+  isUnified!: boolean;
+
   @ManyToOne(() => Char, (char) => char.snapshots, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'charId' })
   char!: Char;

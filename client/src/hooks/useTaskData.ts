@@ -184,6 +184,8 @@ export function useUpdateTaskStatus() {
       queryClient.invalidateQueries({ queryKey: ["tasks"], refetchType: "inactive" });
       queryClient.invalidateQueries({ queryKey: ["dashboard"], refetchType: "inactive" });
       queryClient.invalidateQueries({ queryKey: ["drops"], refetchType: "inactive" });
+      // Invalida o ciclo mensal pois DropRecord é criado/deletado no updateTaskStatus
+      queryClient.invalidateQueries({ queryKey: ["drops-cycle"], refetchType: "inactive" });
     },
   });
 }
@@ -238,10 +240,10 @@ export function useMonthlyCycle(charId: string | null) {
   });
 }
 
-export function usePeriodHistory(charId: string | null, frequency?: TaskFrequency) {
+export function usePeriodHistory(charId: string | null) {
   return useQuery({
-    queryKey: ["period-history", charId, frequency],
-    queryFn: () => api.getPeriodHistory({ charId: charId!, frequency, limit: 52 }),
+    queryKey: ["period-history", charId],
+    queryFn: () => api.getPeriodHistory({ charId: charId!, limit: 52 }),
     enabled: !!charId,
     staleTime: 30_000,
   });
